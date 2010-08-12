@@ -2,6 +2,8 @@
 /**  {{{ file information
  * vim: set fdm=marker:
  * @author xurenlu <helloasp@hotmail.com>
+ * @version 1.0.0
+ * @last_modified 2010-08-12 17:44:37
  * @link http://www.162cm.com
  * @copyright All wroten myself.You can use it free,But don't remove the copyright.
  * }}} */
@@ -10,6 +12,20 @@
 */ 
 function sm_log($msg){
     error_log($msg); 
+}
+/** }}} */
+/*** {{{  pr 
+*/ 
+function pr($var,$legend="variable"){
+    if(php_sapi_name()=="cli"){
+        echo "\n$legend:\n";
+        print_r($var);
+        echo "\n";
+        return;
+    }
+    echo "\n<hr/>$legend<hr/><pre>";
+    print_r($var);
+    echo "</pre>";
 }
 /** }}} */
 /*** {{{  sm_gen_url 
@@ -264,66 +280,39 @@ class sm_sql{
 function _sm_mysql($id){
     global $sm_config; 
     if(!is_array($sm_config["mysql"][$id])){
-        if($sm_config["debug"]) {
-            sm_log("MYSQL configuration 'sm_config[\"mysql\"][$id]' not exists");
-        }
-        return null;
+        throw new smException("MYSQL configuration 'sm_config[\"mysql\"][$id]' not exists");
     }
     $config=$sm_config["mysql"][$id];
     $conn=mysql_connect($config["host"],$config["user"],$config["password"]);
     $switch=mysql_select_db($config["database"],$conn);
     if(!is_resource($conn) || !$switch){
-        if($sm_config["debug"]){
-            sm_log("Mysql error:Can't connect to hosts with : -h ".$config["host"]." -u ".$config["user"]." -p ".$config["password"]." ".$config["database"]);
-            return null;
-        }
+            throw new smException("Mysql error:Can't connect to hosts with : -h ".$config["host"]." -u ".$config["user"]." -p ".substr($config["password"],0,2)."*** ".$config["database"]);
     }
     return $conn;
 }
 /** }}} */
-/*** {{{  sm_dbo 
-*/ 
+/*** {{{  sm_dbo */ 
 function sm_dbo($id=0){
-    global $sm_config;
-    global $sm_objects;
-    if(is_resource($sm_objects[$id])){
-        return $sm_objects[$id];
-    }else{
-        return _sm_mysql($id);
-    }
+    global $sm_config,$sm_temp;
+    return is_resource($sm_temp["connections"][$id])?$sm_temp["connections"][$id]:_sm_mysql($id);
 }
 /** }}} */
-/*** {{{  sm_query 
-*/ 
+/*** {{{  sm_query 执行一条sql查询并返回结果*/ 
 function sm_query($sql,$conn=null){
     global $sm_config;
-    if($sm_config["sql_debug"]){ error_log($sql); }
-    if(is_null($conn)){
-        //不指定conn时,mysql会调用默认连接
-        $rs=mysql_query($sql);
+    if($sm_config["sql_debug"]){
+        error_log($sql);
     }
-    else{
-        $rs=mysql_query($sql,$conn);
-    }
-    return $rs;
+    return is_null($conn)?mysql_query($sql):mysql_query($sql,$conn);//不指定conn时,mysql会调用默认连接
 }
 /** }}} */
-/** {{{ sm_fetch_row
- * 
- * */
+/** {{{ sm_fetch_row 取出sql查询的一条结果 */
 function sm_fetch_row($sql,$conn=null){
-    global $sm_config;
     $rs=sm_query($sql,$conn);
-    if(!empty($rs)){
-        $row=mysql_fetch_assoc($rs); 
-        return $row;
-    }
-    else
-        return null;
+    return empty($rs)? null:mysql_fetch_assoc($rs);
 }
 /** }}} */
-/*** {{{  sm_fetch_rows 
-*/ 
+/*** {{{  sm_fetch_rows 取出sql查询的多条结果 */ 
 function sm_fetch_rows($sql,$conn=null){
     global $sm_config;
     $rs=sm_query($sql,$conn);
@@ -334,44 +323,32 @@ function sm_fetch_rows($sql,$conn=null){
         }
         return $rows;
     }
-    else
-        return null;
 }
 /** }}} */
-/** {{{ class smException **/
-class smException  extends Exception{
-    function __construct($msg,$code=-1){
-        parent::__construct($msg,$code);
-    }
-    /*** {{{  __toString */ 
-    public function __toString(){
-        return $msg."";
-    } /** }}} */
-}
-/*** }}} */
+class smException  extends Exception{}
 /** {{{ class smTable **/
 class smTable{
-    private $_conn=null;
+    private $_rconn=null;
+    private $_wconn=null;
     private $_table=null;
     private $_pagesize=null;
     private $_page_var = "page";
-    private $_extra_args = "null";
-    function __construct($table,$primary_key="id",$conn=null){
+    private $_extra_args = null;
+    function __construct($table,$primary_key="id",$rconn=null,$wconn=null){
+        global $sm_config;
         $this->_table=$table;
-        $this->_conn=$conn;
+        $this->_rconn=$rconn;
+        $this->_wconn=$wconn;
         $this->_extra_args=$_GET;
+        $this->_pagesize=($sm_config["pagesize"]>0)?$sm_config["pagesize"]:20;
     }
-    /*** {{{  set_conn 
-    */ 
-    public function set_conn($conn)
-    {
-        $this->_conn=$conn;
+    /*** {{{ set variables */ 
+    public function __set($varname,$value){
+        $this->$varname=$value;
     }
     /** }}} */
-    /*** {{{  get_select_conditions 
-    */ 
-    function get_select_conditions($columns,$values)
-    {
+    /*** {{{  get_select_conditions */ 
+    function get_select_conditions($columns,$values){
             $conditions=array();
             foreach($columns as $k=>$v){
                 $conditions[]="`".$v."` = '".mysql_escape_string($values[$k])."'";
@@ -445,43 +422,146 @@ class smTable{
     /*** }}} */
     /*** {{{  find_by */ 
     public function find_by($conditions=null,$wanted="*",$order_by=null,$limit=null,$group_by=null){
-            $sql=sm_sql::select($this->_table,$wanted,$conditions,$order_by,$limit,$group_by);
-            $rows=sm_fetch_rows($sql,$this->_conn);
-            return $rows;
+        $sql=sm_sql::select($this->_table,$wanted,$conditions,$order_by,$limit,$group_by);
+        $rows=sm_fetch_rows($sql,$this->_rconn);
+        return $rows;
     }
     /** }}} */
-    /*** {{{ find_row_by */ 
+    /*** {{{ find_row_by 根据条件列查找数据;*/ 
     public function find_row_by($conditions=null,$wanted="*",$order_by=null,$limit=1,$group_by=null){
-        $rows=$this->find_by($conditions,$wanted,$order_by,$limit,$group_by);
-        return $rows[0];
+        return array_shift($this->find_by($conditions,$wanted,$order_by,$limit,$group_by));
     }
     /** }}} */
-     /*** {{{ page_by */ 
-    public function page_by($conditions=null,$wanted="*",$order_by=null,$limit=1,$group_by=null){
+     /*** {{{ page_by 根据条件查询数据,同时自带分页;*/ 
+    public function page_by($conditions=null,$wanted="*",$order_by=null,$limit=null,$group_by=null){
+        if(! ($_GET[$this->_page_var]>0)){
+            $pagenow=1;
+        }
+        else
+            $pagenow=$_GET[$this->_page_var];
+        $limit=($pagenow-1)*$this->_pagesize.",".$this->_pagesize;
          $rows=$this->find_by($conditions,$wanted,$order_by,$limit,$group_by); 
          $count_sql=sm_sql::count($this->_table,$conditions,$order_by,1,$group_by);
-         $row=sm_fetch_row($count_sql);
+         $row=sm_fetch_row($count_sql,$this->_rconn);
          $total=$row["c"];
          $pagestr = sm_pagenav_default($total,$this->_pagesize,$this->_pagestr,$this->_extra_args,$this->_page_var,3,3);
          return array("total"=>$total,"entries"=>$rows,"page"=>$pagestr);
      }
      /** }}} */
-     /*** {{{ update_by */ 
+     /*** {{{ update_by 根据条件更新数据;*/ 
      public function update_by($conditions,$values,$limit=1){
 		$sql=sm_sql::update($this->_table,$values,$conditions,$limit);
-        return sm_query($sql); 
+        return sm_query($sql,$this->_wconn); 
      }
      /** }}} */
      /*** {{{ delete_by */ 
      public function delete_by($conditions,$limit=1){
 		    $sql=sm_sql::delete($this->_table,$conditions);
+		    return sm_query($sql,$this->_wconn);
      }
      /** }}} */
      /*** {{{  create */ 
      public function create($row){
          $sql=sm_sql::insert($this->_table,$row);
-         return sm_query($sql); 
+         return sm_query($sql,$this->_wconn); 
      }
      /** }}} */
 }
 /*** }}} */
+/** {{{  smApplication **/
+class smApplication{
+    private $_app="smapplication";
+    private $_name="smapplication";
+    function __construct($name="smapplication"){
+        global $sm_config;
+        $this->_name=$name;
+        if(!class_exists($name)){
+            include_once($sm_config["app_root"]."/app/".strtolower($name).".php");
+            $this->_app = new $name($name);
+        }else{
+            $this->_app=$this;
+        }
+    }
+    /*** {{{  _before_filter */ 
+    private  function _before_filter($action){
+        $var_name = "before_filters_$action";
+        foreach($this->$var_name as $method){
+            $this->$method();
+        }
+        foreach($this->before_filters as $method){
+            $this->$method();
+        }
+    }
+    /** }}} */
+     /*** {{{ _after_filter      */ 
+     private function _after_filter($action){
+        $var_name = "after_filters_$action";
+        foreach($this->$var_name as $method){
+            $this->$method();
+        }
+        foreach($this->after_filters as $method){
+            $this->$method();
+        }
+     }
+     /** }}} */
+    /*** {{{  method_miss */ 
+    private function _method_missing($method) {
+        throw new smException("method  missing:".$this->_name."->".$method);
+    }
+    /** }}} */
+     /*** {{{ v include the view files;*/
+    function v($action){
+        $path= $sm_config["app_root"]."/app/views/".$this->_name."/$action.php";
+        if(!include($path))
+            echo "view file [$path] not exists";
+    }
+    /*** }}} */
+    /*** {{{  dispatch */ 
+    public function dispatch($action){
+        global $sm_config;
+        $methods=get_class_methods($this->_app);
+        if(in_array($action,$methods)){
+            $this->_app->_before_filter($action);
+            $this->_app->$action();
+            $this->_app->_after_filter($action);
+            return true;
+        }
+        if(in_array("action_".$action,$methods)){
+            $method="action_".$action;
+            $this->_app->_before_filter($action);
+            $this->_app->$method();
+            $this->_app->_after_filter($action);
+            return true;
+        }
+        /* 如果views 文件也不存在,那就调用method_missing方法; */
+        if(!include($sm_config["app_root"]."/app/views/".$this->_name."/$action.php"))
+            $this->_app->_method_missing($action);
+        return false;
+    }
+    /** }}} */
+    /*** {{{ establish_connect 建立默认连接,默认情况下读用 */
+    public function establish_connect(){
+       return  $this->_rconn =$this->_wconn=sm_dbo(0);
+    }
+    /*** {{{ __get */
+    public function __get($var){
+		return array();
+    }
+    /*** }}} */
+}
+/*** }}} */
+/*** {{{  run_sm */ 
+function run_sm($controller=null,$action=null) {
+    global $sm_temp;
+    if(is_null($controller)) 
+        $sm_temp["controller"]=empty($_GET["controller"])?  "smapplication":strtolower($_GET["controller"]);
+    else
+        $sm_temp["controller"]=$controller;
+    if(is_null($action))
+        $sm_temp["action"]=empty($_GET["action"])?  "index":strtolower($_GET["index"]);
+    else
+        $sm_temp["action"]=$action;
+    $app=new smApplication($sm_temp["controller"]);
+    return $app->dispatch($sm_temp["action"]); 
+}
+/** }}} */

@@ -2,6 +2,17 @@
 include "./sm.php";
 include "./sm_config.php";
 
+run_sm("users","new");
+exit();
+/**
+$pathinfo="/question/108382.html";
+$sm_config["url_rewrites"]=array(
+    "default"=>
+    array(
+        "url_pattern"=>"/{question}/{id}.{format}",
+        "question_default"=>"que
+        exit();
+ */
 $conn = sm_dbo(0);
 $user= new smTable("test_user","id",$conn);
 /** testing code */
