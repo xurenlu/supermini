@@ -45,7 +45,8 @@ class sm_sql{
 	 * @param string $group
 	 */
 	static function select($table,$columns="*",$conditions=null,$order=null,$limit=null,$group=null)
-	{
+    {
+        error_log("table:$table,columns:$columns,conditions:$conditions,order:$order,limit:$limit,$group");
 		global $config;
 		if(is_array($columns))
 			$cols=join(",",$columns);
@@ -129,30 +130,11 @@ class sm_sql{
 }
 /**
 @example  
-print_r(sm_sql::update(
-"users",
-array(
-	"id"=>"111",
-	"name"=>"uxferwe'fdsf",
-	"pass"=>"fdsfdsfu2323\\fsdfdsf/'fsdfsdf\""
-),
-"id=9999"));
+print_r(sm_sql::update( "users", array( "id"=>"111", "name"=>"uxferwe'fdsf", "pass"=>"fdsfdsfu2323\\fsdfdsf/'fsdfsdf\""), "id=9999"));
 echo "\n";
-print_r(sm_sql::insert(
-"users",
-array(
-	"id"=>"111",
-	"name"=>"uxferwe'fdsf",
-	"pass"=>"fdsfdsfu2323\\fsdfdsf/'fsdfsdf\""
-)));
+print_r(sm_sql::insert( "users", array( "id"=>"111", "name"=>"uxferwe'fdsf", "pass"=>"fdsfdsfu2323\\fsdfdsf/'fsdfsdf\"")));
 echo "\n";
-print_r(sm_sql::select(
-"users",
-"*",
-"id>9999",
-"id desc",
-"limit 100",
-"age"));
+print_r(sm_sql::select( "users", "*", "id>9999", "id desc", "limit 100", "age"));
 echo "\n";
 */
 ?>
