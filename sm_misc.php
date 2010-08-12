@@ -124,11 +124,7 @@ function sm_pagenav_default($total,$pagesize=null,$pagestr=null,$get_args=null,$
         {
             $str=$str."跳到<input type=\"text\" name=\"txtpage\" id='input_".$sn."' size=\"3\" class=\"tinput\" / >页";
             $str=$str."<input type=\"button\" value=\"GO\" class=\"tinput\"
-                onclick=\"javascript:if((document.getElementById('input_".$sn."').value>=1)
-                &&(document.getElementById('input_".$sn."').value<=".$pagecount.")
-                &&(document.getElementById('input_".$sn."').value!=".$pagenow."))
-                window.location='".sm_gen_url($pagestr,$url_pattern,$get_args)."'.replace('{page}',document.getElementById('input_".$sn."').value);\"/></form>";
-
+                onclick=\"javascript:if((document.getElementById('input_".$sn."').value>=1) &&(document.getElementById('input_".$sn."').value<=".$pagecount.") &&(document.getElementById('input_".$sn."').value!=".$pagenow.")) window.location='".sm_gen_url($pagestr,$url_pattern,$get_args)."'.replace('{page}',document.getElementById('input_".$sn."').value);\"/></form>";
         }
     //	echo "<hr/><font color='red'>".sm_gen_url($pagestr,$url_pattern)."</font>";
     return $str;
