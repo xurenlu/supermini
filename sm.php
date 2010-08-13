@@ -495,6 +495,7 @@ class smApplication{
     /** }}} */
      /*** {{{ v include the view files;*/
     function v($action){
+        global $sm_config;
         $path= $sm_config["app_root"]."/app/views/".$this->_name."/$action.php";
         if(!include($path))
             echo "view file [$path] not exists";
@@ -542,7 +543,7 @@ function run_sm($controller=null,$action=null) {
     else
         $sm_temp["controller"]=$controller;
     if(is_null($action))
-        $sm_temp["action"]=empty($_GET["action"])?  "index":strtolower($_GET["index"]);
+        $sm_temp["action"]=empty($_GET["action"])?  "index":strtolower($_GET["action"]);
     else
         $sm_temp["action"]=$action;
     $app=new smApplication($sm_temp["controller"]);
