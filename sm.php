@@ -494,8 +494,10 @@ class smApplication{
     }
     /** }}} */
      /*** {{{ v include the view files;*/
-    function v($action){
+    function v($action=null){
         global $sm_config;
+        if(is_null($action))
+            $action=$this->_last_action;
         $path= $sm_config["app_root"]."/app/views/".$this->_name."/$action.php";
         if(!include($path))
             echo "view file [$path] not exists";
@@ -504,6 +506,7 @@ class smApplication{
     /*** {{{  dispatch run the filters and real action method;*/ 
     public function dispatch($action){
         global $sm_config;
+        $this->_last_action = $action;
         $methods=get_class_methods($this->_app);
         if(in_array($action,$methods)){
             $this->_app->_before_filter($action);
