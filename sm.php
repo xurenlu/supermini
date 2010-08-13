@@ -7,15 +7,12 @@
  * @link http://www.162cm.com
  * @copyright All wroten myself.You can use it free,But don't remove the copyright.
  * }}} */
-/*** {{{  sm_log 
- * 日志记录;
-*/ 
+/*** {{{  sm_log * 日志记录; */ 
 function sm_log($msg){
     error_log($msg); 
 }
 /** }}} */
-/*** {{{  pr 
-*/ 
+/*** {{{  pr,调试变量时用; */ 
 function pr($var,$legend="variable"){
     if(php_sapi_name()=="cli"){
         echo "\n$legend:\n";
@@ -28,8 +25,7 @@ function pr($var,$legend="variable"){
     echo "</pre>";
 }
 /** }}} */
-/*** {{{  sm_gen_url 
- */ 
+/*** {{{  sm_gen_url 拼凑URL时用到;*/ 
 function sm_gen_url($string,$url_pattern,$get_args=array()){
     $targetURL=$url_pattern;
     foreach($get_args as $k=>$v){
@@ -41,9 +37,7 @@ function sm_gen_url($string,$url_pattern,$get_args=array()){
         return $string;
 }
 /** }}} */
-/** {{{ sm_test_urlencode
- * 探测一个变量是否已经被urlencode过了。
- */
+/** {{{ sm_test_urlencode * 探测一个变量是否已经被urlencode过了。 */
 function sm_test_urlencode($var){
     if(urldecode($var)==$var)
         return false;
@@ -51,8 +45,7 @@ function sm_test_urlencode($var){
         return true;
 }
 /** * }}} */
-/** {{{ sm_pagenav_default
- * Page navgation ，
+/** {{{ sm_pagenav_default 分页函数 ，
  * 
  * @param int $total 总记录个数
  * @param int $pagesize 每页记录数
@@ -130,7 +123,7 @@ function sm_pagenav_default($total,$pagesize=null,$pagestr=null,$get_args=null,$
     return $str;
 }
 /*** }}} */
-/** * {{{ class smCache **/
+/** * {{{ class smCache 调用memcache 取缓存;*/
 class smCache { 
     private $_group_id;
     private $_servers;
@@ -147,14 +140,12 @@ class smCache {
         }
     }
     /** }}} */
-    /**
-     * {{{ get_data
-     * */
+    /** * {{{ get_data 读缓存值 */
     function get_data($key){
         return $this->mem->get($key);
     }
     /** * }}} */
-    /*** {{{ set_data */
+    /*** {{{ set_data 设置缓存值;*/
     function set_data($key,$val,$expire=7200){
         return  $this->mem->set($key,$val,$this->_flag,$expire);
     }
@@ -166,7 +157,7 @@ class smCache {
     /*** }}} */
 }
 /** * }}}  */
-/** {{{ static class sm_sql 
+/** {{{ static class sm_sql  帮助构造SQL语句的小工具类;
 @example  
 sm_sql::update( "users", array( "id"=>"111", "name"=>"uxferwe'fdsf", "pass"=>"fdsfdsfu2323\\fsdfdsf/'fsdfsdf\""), "id=9999");
 sm_sql::insert( "users", array( "id"=>"111", "name"=>"uxferwe'fdsf", "pass"=>"fdsfdsfu2323\\fsdfdsf/'fsdfsdf\""));
@@ -177,9 +168,7 @@ class sm_sql{
 	static function escape_string($v){
 		return mysql_escape_string($v);
     }
-	/** {{{ update
-	* 构造更新SQL
-	*
+	/** {{{ update  构造更新SQL
 	*@param string $table 要更新的数据表名
 	*@param array $array 要更新的数据
 	*@param string condition 更新条件
@@ -206,8 +195,7 @@ class sm_sql{
 		}
     }
     /** }}} */
-	/** {{{ select
-	 * 构造查询SQL
+	/** {{{ select 构造查询SQL
      *
      * @param string $table 表名字
 	 * @param string $columns
@@ -222,30 +210,24 @@ class sm_sql{
 			$cols=join(",",$columns);
 		else
 			$cols=$columns;
-	
 		$sql="	SELECT ".$columns." From ".$table;
 		if(!is_null($conditions))
-		$sql.="	WHERE ".$conditions;
-		
+		    $sql.="	WHERE ".$conditions;
 		if(!is_null($group))
-		$sql.="	GROUP BY ".$group;
-		
+		    $sql.="	GROUP BY ".$group;
 		if(!is_null($order))
-		$sql.="	ORDER BY ".$order;
-		
+		    $sql.="	ORDER BY ".$order;
 		if(!is_null($limit))
-		$sql.="	LIMIT ".$limit;
-
+		    $sql.="	LIMIT ".$limit;
 		return $sql;
     } 
     /** }}} */
-    /*** {{{  count */ 
+    /*** {{{  count 构造count类语句,注意构造出的是count(*) as c ;*/ 
 	static function count($table,$conditions=null,$order=null,$limit=null,$group=null){
         return self::SELECT($table,"count(*) as c",$conditions,$order,$limit,$group); 
     }
     /** }}} */
-	/** {{{ insert
-	* 得到插入语句的SQL
+	/** {{{ insert 得到插入语句的SQL
 	* @name insert
 	* @param strint $table 数据表名字
 	* @param array array 要插入的一行数据
@@ -263,8 +245,7 @@ class sm_sql{
 		}
     }
     /*** }}} */
-	/** {{{ delete 
-	* 得到删除语句的SQL
+	/** {{{ delete  得到删除语句的SQL
 	* @param string $table 数据表名字
 	* @param string $condition 条件
 	* @param integer $limit limit字段
@@ -291,13 +272,14 @@ function _sm_mysql($id){
     return $conn;
 }
 /** }}} */
-/*** {{{  sm_dbo */ 
+/*** {{{  sm_dbo 返回一个连接对象
+ * @param integer $id 在sm_config里的mysql相关配置索引;*/ 
 function sm_dbo($id=0){
     global $sm_config,$sm_temp;
     return is_resource($sm_temp["connections"][$id])?$sm_temp["connections"][$id]:_sm_mysql($id);
 }
 /** }}} */
-/*** {{{  sm_query 执行一条sql查询并返回结果*/ 
+/*** {{{  sm_query 执行一条sql查询并返回结果 */ 
 function sm_query($sql,$conn=null){
     global $sm_config;
     if($sm_config["sql_debug"]){
@@ -337,7 +319,11 @@ class smTable{
     function __construct($table,$primary_key="id",$rconn=null,$wconn=null){
         global $sm_config;
         $this->_table=$table;
+        if(is_null($rconn))
+            $rconn=sm_dbo(0);
         $this->_rconn=$rconn;
+        if(is_null($wconn))
+            $wconn=$rconn;
         $this->_wconn=$wconn;
         $this->_extra_args=$_GET;
         $this->_pagesize=($sm_config["pagesize"]>0)?$sm_config["pagesize"]:20;
@@ -356,10 +342,10 @@ class smTable{
             return $conditions; 
     }
     /** }}} */
-     /*** {{{ __call the famous magic method */
+     /*** {{{ __call : the famous magic method */
     function __call($name,$args){
         if(preg_match("/^find_by_/",$name)){
-            //是要根据某些键值来删除数据
+            //是要根据某些键值来查找数据
             $temp= substr($name,8,strlen($name)-8);
             $columns = explode("_and_",$temp);
             if(sizeof($args)<sizeof($columns)){
@@ -400,7 +386,6 @@ class smTable{
             $wanted="*";
             $limit=$group_by=$order_by=null;
             if(!empty($args[0])){
-                //还有多余的参数;
                 if(!empty($args[0]["where"])){
                     $conditions[]=$args[0]["where"];
                 }
@@ -420,32 +405,31 @@ class smTable{
         }
     }
     /*** }}} */
-    /*** {{{  find_by */ 
+    /*** {{{  find_by 根据指定的条件来查询*/ 
     public function find_by($conditions=null,$wanted="*",$order_by=null,$limit=null,$group_by=null){
         $sql=sm_sql::select($this->_table,$wanted,$conditions,$order_by,$limit,$group_by);
         $rows=sm_fetch_rows($sql,$this->_rconn);
         return $rows;
     }
     /** }}} */
-    /*** {{{ find_row_by 根据条件列查找数据;*/ 
+    /*** {{{ find_row_by 根据条件列查找数据,直接调用find_by并返回第一条数据;*/ 
     public function find_row_by($conditions=null,$wanted="*",$order_by=null,$limit=1,$group_by=null){
         return array_shift($this->find_by($conditions,$wanted,$order_by,$limit,$group_by));
     }
     /** }}} */
      /*** {{{ page_by 根据条件查询数据,同时自带分页;*/ 
     public function page_by($conditions=null,$wanted="*",$order_by=null,$limit=null,$group_by=null){
-        if(! ($_GET[$this->_page_var]>0)){
+        if(! ($_GET[$this->_page_var]>0))
             $pagenow=1;
-        }
         else
             $pagenow=$_GET[$this->_page_var];
         $limit=($pagenow-1)*$this->_pagesize.",".$this->_pagesize;
-         $rows=$this->find_by($conditions,$wanted,$order_by,$limit,$group_by); 
-         $count_sql=sm_sql::count($this->_table,$conditions,$order_by,1,$group_by);
-         $row=sm_fetch_row($count_sql,$this->_rconn);
-         $total=$row["c"];
-         $pagestr = sm_pagenav_default($total,$this->_pagesize,$this->_pagestr,$this->_extra_args,$this->_page_var,3,3);
-         return array("total"=>$total,"entries"=>$rows,"page"=>$pagestr);
+        $rows=$this->find_by($conditions,$wanted,$order_by,$limit,$group_by); 
+        $count_sql=sm_sql::count($this->_table,$conditions,$order_by,1,$group_by);
+        $row=sm_fetch_row($count_sql,$this->_rconn);
+        $total=$row["c"];
+        $pagestr = sm_pagenav_default($total,$this->_pagesize,$this->_pagestr,$this->_extra_args,$this->_page_var,3,3);
+        return array("total"=>$total,"entries"=>$rows,"page"=>$pagestr);
      }
      /** }}} */
      /*** {{{ update_by 根据条件更新数据;*/ 
@@ -468,7 +452,7 @@ class smTable{
      /** }}} */
 }
 /*** }}} */
-/** {{{  smApplication **/
+/** {{{  smApplication Mvc 功能主要在这里实现;**/
 class smApplication{
     private $_app="smapplication";
     private $_name="smapplication";
@@ -516,7 +500,7 @@ class smApplication{
             echo "view file [$path] not exists";
     }
     /*** }}} */
-    /*** {{{  dispatch */ 
+    /*** {{{  dispatch run the filters and real action method;*/ 
     public function dispatch($action){
         global $sm_config;
         $methods=get_class_methods($this->_app);
@@ -539,11 +523,11 @@ class smApplication{
         return false;
     }
     /** }}} */
-    /*** {{{ establish_connect 建立默认连接,默认情况下读用 */
+    /*** {{{ establish_connect 建立默认连接,默认情况下读写用同一个链接; */
     public function establish_connect(){
        return  $this->_rconn =$this->_wconn=sm_dbo(0);
     }
-    /*** {{{ __get */
+    /*** {{{ __get magic method;*/
     public function __get($var){
 		return array();
     }
