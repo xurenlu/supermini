@@ -25,6 +25,73 @@ function pr($var,$legend="variable"){
     echo "</pre>";
 }
 /** }}} */
+/** {{{ phpEvent 	一些跟事件触发相关的全局函数.
+*/
+global $PE_EVENTS;
+global $PE_FILTERS;
+$PE_FILTERS=array();
+$PE_EVENTS=array();
+/**
+*	执行某一事件.
+*@name		smDoEvent
+*@access	public
+*@author	xurenlu
+*@return nothing
+*/
+function smDoEvent($event,$args=null)
+{
+	global $PE_EVENTS;
+	if(is_array($PE_EVENTS[$event]))
+	foreach($PE_EVENTS[$event] as $handle)
+	{
+		if(function_exists($handle))
+		$handle($args);
+	}
+}
+/**
+*	加入一个事件处理器
+*@name		smAddEvent
+*@access	public
+*@author	xurenlu<helloasp@hotmail.com>
+*@param	$event	string	"event name"
+*@param	$handle	string	"event handle"
+*@return nothing
+*/
+function smAddEvent($event,$handle)
+{
+	global $PE_EVENTS;
+	$PE_EVENTS[$event][]=$handle;
+}
+/**
+*	给数据加一个过滤器.
+*@name	smAddFilter
+*@param	$dataName	string	数据名
+*@param	$filterName	string 过滤器名
+*@return nothing
+*/
+function smAddFilter($dataName,$filterName)
+{
+	global $PE_FILTERS;
+	$PE_FILTERS[$dataName][]=$filterName;
+}
+/**
+*	给数据应用过滤器.
+*@name	smApplyEvent
+*@param	$data	string	数据
+*@param	$dataName	string	数据名
+*@return nothing
+*/
+function  smApplyEvent(&$data,$dataName)
+{
+	global $PE_FILTERS;
+	if(is_array($PE_FILTERS[$dataName]))
+	foreach($PE_FILTERS[$dataName] as $filter)
+	{
+		if(function_exists($filter))
+		$filter(  $data);
+	}
+}
+/*** }}} */
 /*** {{{  sm_gen_url 拼凑URL时用到;*/ 
 function sm_gen_url($string,$url_pattern,$get_args=array()){
     $targetURL=$url_pattern;
@@ -266,6 +333,7 @@ function _sm_mysql($id){
     $config=$sm_config["mysql"][$id];
     $conn=mysql_connect($config["host"],$config["user"],$config["password"]);
     $switch=mysql_select_db($config["database"],$conn);
+    smDoEvent("select_db",$conn);
     if(!is_resource($conn) || !$switch){
             throw new smException("Mysql error:Can't connect to hosts with : -h ".$config["host"]." -u ".$config["user"]." -p ".substr($config["password"],0,2)."*** ".$config["database"]);
     }
@@ -369,7 +437,7 @@ class smTable{
                 $wanted=empty($args[0]["wanted"])?"*":$args[0]["wanted"];
             }
             $cond=join(" AND ",$conditions);
-            return $this->find_by($wanted,$cond,$order_by,$limit,$group_by);
+            return $this->find_by($cond,$wanted,$order_by,$limit,$group_by);
         }
         if(preg_match("/^page_by_/",$name)){
             $temp= substr($name,8,strlen($name)-8);
@@ -401,7 +469,7 @@ class smTable{
             }
             $cond=join(" AND ",$conditions);
             $limit = ($page-1)*$per_page.",$per_page"; 
-            return $this->page_by($wanted,$cond,$order_by,$limit,$group_by);
+            return $this->page_by($cond,$wanted,$order_by,$limit,$group_by);
         }
     }
     /*** }}} */
@@ -456,6 +524,7 @@ class smTable{
 class smApplication{
     private $_app="smapplication";
     private $_name="smapplication";
+    private $_last_action="index";
     function __construct($name="smapplication"){
         global $sm_config;
         $this->_name=$name;
@@ -538,6 +607,102 @@ class smApplication{
     /*** }}} */
 }
 /*** }}} */
+/**
+ * class Form
+ **/
+class smForm
+{
+    var $_values=array();
+    var $_name="";
+    /**
+     * 如果$arg是一维数据,则表示数据表中的一列数据;
+     * 如果$arg是对象,则视为smTable对象;
+     * 如果$arg是字符串,则视为mysql数据表名字;
+     * */
+    function __construct($name,$values=null){
+        $this->_name=$name;
+        $this->_values=$values;
+    }
+    function begin($action,$html_attrs=array("method"=>"POST")){
+        $str="<form  action='$action' ";
+        foreach($html_attrs as $k=>$v){
+            $str.=" $k='".$v."' ";
+        }
+        $str.= ">";
+        return $str;
+    }
+    function end(){
+        return "</form>";
+    }
+    function textarea($field_name,$html_attrs){
+        $value=$this->_get_value($field_name,$html_attrs);
+        $html= $this->_left("textarea",$field_name,$html_attrs);
+        $html.=">".htmlspecialchars($value)."</textarea>";
+        return $html;
+    }
+    function text_field($field_name,$html_attrs){
+        $value=$this->_get_value($field_name,$html_attrs);
+        $html_attrs["type"]="text";
+        $html_attrs["value"]=$value;
+        return $this->input($field_name,$html_attrs);
+    }
+    function check_box($field_name,$html_attrs){
+        $value=$this->_get_value($field_name,$html_attrs);
+        $html_attrs["type"]="check_box";
+        $html_attrs["value"]=$value;
+        return $this->input($field_name,$html_attrs);
+    }
+    function submit($value="提交",$html_attrs=array()){
+        $html_attrs["type"]="submit";
+        return $this->button("",$html_attrs,$value);
+    }
+    function select($field_name,$values,$html_attrs){
+        $value=$this->_get_value($field_name,$html_attrs);
+        $select_html = $this->_left("select",$field_name,$html_attrs);
+        foreach($values as $v){
+            if(sizeof($v)!=2) throw new smException("you assign a bad value for select ,file:".__FILE__.",line:".__LINE__);
+            if(!empty($value) && $v[0]==$value ){
+                $strs[]=$this->option("",array("value"=>$v[0],"selected"=>"selected"),$v[1]);
+            }else{
+                $strs[]=$this->option("",array("value"=>$v[0]),$v[1]);
+            }
+        }
+        return "$select_html".join("",$strs)."</select>";
+    }
+    function __call($name,$args){
+        $tag_name = $name;
+        $field_name= array_shift($args);
+        $html_attrs=array_shift($args);
+        $inner_html=array_shift($args);
+        $left_htmls = $this->_left($tag_name,$field_name,$html_attrs);
+        $str.=$left_htmls.">".$inner_html."</$tag_name>";
+        return $str;
+    }
+    function _get_value($field_name,$html_attrs){
+        if(!empty($this->_values)){
+            $value=$this->_values[$field_name];
+        }
+        if(!empty($html_attrs["value"]))
+            $value=$html_attrs["value"];
+        return $value;
+    }
+    function _left($tag_name,$field_name,$html_attrs){
+        if($field_name){
+            $str="<".$tag_name." id='".$this->_name."_".$field_name."' name='".$this->_name."[".$field_name."]' ";
+        }
+        else{
+            $str="<".$tag_name." ";
+        }
+        foreach($html_attrs as $k=>$v){
+            $str .=$k."='".$v."' ";
+        }
+        return $str;
+    }
+    function fetch($source=null){
+        if(is_null($source)) $source=$_POST;
+        print_r($source);
+    }
+}
 /*** {{{  run_sm */ 
 function run_sm($controller=null,$action=null) {
     global $sm_temp;

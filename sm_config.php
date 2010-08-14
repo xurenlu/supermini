@@ -3,6 +3,8 @@
 global $sm_config,$sm_temp,$sm_data;
 $sm_config["mysql"][0]=array("host"=>"localhost","user"=>"root","password"=>"your password here","database"=>"test");
 $sm_config["mysql"][1]=array("host"=>"localhost","user"=>"root","password"=>"your password here","database"=>"test");
+$sm_config["mysql"][0]=array("host"=>"localhost","user"=>"root","password"=>"842519","database"=>"test");
+$sm_config["mysql"][1]=array("host"=>"localhost","user"=>"root","password"=>"842519","database"=>"test");
 $sm_config["memcache"]["group_1"]=
     array(
         array("host"=>"localhost","port"=>11211),

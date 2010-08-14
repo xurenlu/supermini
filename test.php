@@ -1,8 +1,24 @@
 <?php
+header("Content-type:text/html;charset=utf8");
 include "./sm.php";
 include "./sm_config.php";
-
-run_sm("users","new");
+$conn = sm_dbo(0);
+$user= new smTable("test_user","id",$conn);
+$auser= $user->find_row_by();
+pr($auser);
+//print_R($auser);
+$form = new smForm("user",$auser);
+//echo $form->begin("/user/new",array("method"=>"POST","class"=>"new_form"));
+echo $form->begin("?act=go");//,array("method"=>"POST","class"=>"new_form"));
+//echo $form->textarea("name",array("rows"=>2,"length"=>28));
+echo $form->text_field("name",array("rows"=>2,"length"=>28));
+//echo $form->textarea("age",array("rows"=>2,"length"=>28));
+echo $form->select("age",array(array("0","me"),array("1","you"),array("8","old")),array("rows"=>2,"length"=>28));
+echo $form->submit();
+echo $form->end();
+print_r($form->fetch());
+// echo "</form>";
+//run_sm("users","new");
 exit();
 /**
 $pathinfo="/question/108382.html";
