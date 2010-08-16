@@ -25,7 +25,7 @@ function pr($var,$legend="variable"){
     echo "</pre>";
 }
 /** }}} */
-/** {{{ phpEvent 	一些跟事件触发相关的全局函数.
+/** {{{ smPhpEvent 	一些跟事件触发相关的全局函数.
 */
 global $PE_EVENTS;
 global $PE_FILTERS;
@@ -337,6 +337,7 @@ function _sm_mysql($id){
     if(!is_resource($conn) || !$switch){
             throw new smException("Mysql error:Can't connect to hosts with : -h ".$config["host"]." -u ".$config["user"]." -p ".substr($config["password"],0,2)."*** ".$config["database"]);
     }
+    if(!empty($sm_config["prepare_sql"])) sm_query($sm_config["prepare_sql"]."");
     return $conn;
 }
 /** }}} */
@@ -600,6 +601,7 @@ class smApplication{
     public function establish_connect(){
        return  $this->_rconn =$this->_wconn=sm_dbo(0);
     }
+    /*** }}} */
     /*** {{{ __get magic method;*/
     public function __get($var){
 		return array();
@@ -607,9 +609,7 @@ class smApplication{
     /*** }}} */
 }
 /*** }}} */
-/**
- * class Form
- **/
+/** {{{ class Form **/
 class smForm
 {
     var $_values=array();
@@ -700,9 +700,10 @@ class smForm
     }
     function fetch($source=null){
         if(is_null($source)) $source=$_POST;
-        print_r($source);
+        return $source;
     }
 }
+/*** }}} */
 /*** {{{  run_sm */ 
 function run_sm($controller=null,$action=null) {
     global $sm_temp;

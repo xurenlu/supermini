@@ -16,7 +16,7 @@ echo $form->text_field("name",array("rows"=>2,"length"=>28));
 echo $form->select("age",array(array("0","me"),array("1","you"),array("8","old")),array("rows"=>2,"length"=>28));
 echo $form->submit();
 echo $form->end();
-print_r($form->fetch());
+pr($form->fetch());
 // echo "</form>";
 //run_sm("users","new");
 exit();
