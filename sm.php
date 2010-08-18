@@ -337,7 +337,7 @@ function _sm_mysql($id){
     if(!is_resource($conn) || !$switch){
             throw new smException("Mysql error:Can't connect to hosts with : -h ".$config["host"]." -u ".$config["user"]." -p ".substr($config["password"],0,2)."*** ".$config["database"]);
     }
-    if(!empty($sm_config["prepare_sql"])) sm_query($sm_config["prepare_sql"]."");
+    if(!empty($sm_config["prepare_sql"])) sm_query($sm_config["prepare_sql"]."",$conn);
     return $conn;
 }
 /** }}} */
@@ -354,7 +354,14 @@ function sm_query($sql,$conn=null){
     if($sm_config["sql_debug"]){
         error_log($sql);
     }
-    return is_null($conn)?mysql_query($sql):mysql_query($sql,$conn);//不指定conn时,mysql会调用默认连接
+    $ret=is_null($conn)?mysql_query($sql):mysql_query($sql,$conn);//不指定conn时,mysql会调用默认连接
+    if(!$ret){
+        if(is_null($conn))
+            throw new smException("mysql error:sql:$sql,error descrption:".mysql_error());
+        else
+            throw new smException("mysql error:sql:$sql,error descrption:".mysql_error($conn));
+    }
+    return $ret;
 }
 /** }}} */
 /** {{{ sm_fetch_row 取出sql查询的一条结果 */
@@ -385,6 +392,9 @@ class smTable{
     private $_pagesize=null;
     private $_page_var = "page";
     private $_extra_args = null;
+    private $_has_manys=array();
+    private $_has_ones=array();
+    private $_belongs_to=array();
     function __construct($table,$primary_key="id",$rconn=null,$wconn=null){
         global $sm_config;
         $this->_table=$table;
@@ -519,6 +529,25 @@ class smTable{
          return sm_query($sql,$this->_wconn); 
      }
      /** }}} */
+     /*** {{{  __get 
+     */ 
+     public function __get($name)
+     {
+         if(array_key_exists($name,$this->_has_ones))
+             $relation=$this->_has_ones($name);
+         elseif(array_key_exists($name,$this->_has_manys))
+             $relation=$this->_has_manys($name);
+         elseif(array_key_exists($name,$this->_belongs_to)){
+             $relation=$this->_has_manys($name);
+         } 
+         if(!empty($relation)){
+             //add your code here;
+         }
+         else
+             throw new smException("assoaction $name of $this->_name not exists;");
+     }
+     /** }}} */
+     
 }
 /*** }}} */
 /** {{{  smApplication Mvc 功能主要在这里实现;**/
