@@ -12,19 +12,6 @@ function sm_log($msg){
     error_log($msg); 
 }
 /** }}} */
-/*** {{{  pr,调试变量时用; */ 
-function pr($var,$legend="variable"){
-    if(php_sapi_name()=="cli"){
-        echo "\n$legend:\n";
-        print_r($var);
-        echo "\n";
-        return;
-    }
-    echo "\n<hr/>$legend<hr/><pre>";
-    print_r($var);
-    echo "</pre>";
-}
-/** }}} */
 /** {{{ smPhpEvent 	一些跟事件触发相关的全局函数.
 */
 global $PE_EVENTS;
@@ -33,13 +20,9 @@ $PE_FILTERS=array();
 $PE_EVENTS=array();
 /**
 *	执行某一事件.
-*@name		smDoEvent
-*@access	public
-*@author	xurenlu
-*@return nothing
+*@param string $event event name;
 */
-function smDoEvent($event,$args=null)
-{
+function smDoEvent($event,$args=null){
 	global $PE_EVENTS;
 	if(is_array($PE_EVENTS[$event]))
 	foreach($PE_EVENTS[$event] as $handle)
@@ -51,14 +34,11 @@ function smDoEvent($event,$args=null)
 /**
 *	加入一个事件处理器
 *@name		smAddEvent
-*@access	public
-*@author	xurenlu<helloasp@hotmail.com>
 *@param	$event	string	"event name"
-*@param	$handle	string	"event handle"
+*@param	$handle	string	"event handle" must be an exists function name
 *@return nothing
 */
-function smAddEvent($event,$handle)
-{
+function smAddEvent($event,$handle){
 	global $PE_EVENTS;
 	$PE_EVENTS[$event][]=$handle;
 }
@@ -69,8 +49,7 @@ function smAddEvent($event,$handle)
 *@param	$filterName	string 过滤器名
 *@return nothing
 */
-function smAddFilter($dataName,$filterName)
-{
+function smAddFilter($dataName,$filterName){
 	global $PE_FILTERS;
 	$PE_FILTERS[$dataName][]=$filterName;
 }
@@ -81,8 +60,7 @@ function smAddFilter($dataName,$filterName)
 *@param	$dataName	string	数据名
 *@return nothing
 */
-function  smApplyEvent(&$data,$dataName)
-{
+function  smApplyEvent(&$data,$dataName) {
 	global $PE_FILTERS;
 	if(is_array($PE_FILTERS[$dataName]))
 	foreach($PE_FILTERS[$dataName] as $filter)
@@ -106,10 +84,7 @@ function sm_gen_url($string,$url_pattern,$get_args=array()){
 /** }}} */
 /** {{{ sm_test_urlencode * 探测一个变量是否已经被urlencode过了。 */
 function sm_test_urlencode($var){
-    if(urldecode($var)==$var)
-        return false;
-    else
-        return true;
+    return    (urldecode($var)==$var)?false:true;
 }
 /** * }}} */
 /** {{{ sm_pagenav_default 分页函数 ，
@@ -127,7 +102,7 @@ function sm_test_urlencode($var){
  * echo sm_pagenav_default(18244,25,"index.php?page={page}",array("key"=>1),"page",3,3);
  * echo sm_pagenav_default(18244,25,null,array("key"=>1),"page",3,3);
  */
-function sm_pagenav_default($total,$pagesize=null,$pagestr=null,$get_args=null,$page_var_name="page",$l=4,$r=4,$jump=true){
+function sm_pagenav_default($total,$pagesize=null,$pagestr=null,$get_args=null,$page_var_name="page",$l=4,$r=4,$jump=false){
     global $sm_temp;
     $url_pattern=$sm_temp["url_pattern"];
     if(is_null($pagestr)){
@@ -162,10 +137,13 @@ function sm_pagenav_default($total,$pagesize=null,$pagestr=null,$get_args=null,$
         $pagenow=$_GET[$page_var_name];
 
     $sn="page_".rand(1000,9999);
-    $str="<form  onsubmit='javascript:return false;'>一共".$pagecount."页，".$total."个记录。当前为第".$pagenow."页。";
+    $str="<form  onsubmit='javascript:return false;'>";
+    //$str.=一共".$pagecount."页，".$total."个记录。当前为第".$pagenow."页。";
     if ($pagenow>1){
-        $str=$str."&nbsp;&nbsp;<a href='".sm_gen_url(str_replace("{page}","1",$pagestr),str_replace("{page}",1,$url_pattern),$get_args)."'>|<<</a>&nbsp;";
-        $str =$str." <a href='".sm_gen_url(str_replace("{page}",($pagenow-1),$pagestr),str_replace("{page}",($pagenow-1),$url_pattern),$get_args)."'><</a>&nbsp;";
+        $str=$str."<span><a href='".sm_gen_url(str_replace("{page}","1",$pagestr),str_replace("{page}",1,$url_pattern),$get_args)."'>首页</a></span>";
+        $str =$str."<span> <a href='".sm_gen_url(str_replace("{page}",($pagenow-1),$pagestr),str_replace("{page}",($pagenow-1),$url_pattern),$get_args)."'>上一页</a></span>";
+    }else{
+        $str=$str."<span>首页</span><span>&lt;&lt;上一页</span>";
     }
     $startpage=$pagenow-$l;
     $endpage=$pagenow+$r;
@@ -173,13 +151,15 @@ function sm_pagenav_default($total,$pagesize=null,$pagestr=null,$get_args=null,$
     if($endpage>=$pagecount) $endpage=$pagecount;
     for($jj=$startpage;$jj<=$endpage;$jj++){
         if($jj==$pagenow)
-            $str=$str."<strong>".$jj."</strong>&nbsp;";
+            $str=$str."<span class='cur'>".$jj."</span>";
         else
-            $str=$str."<a href='".sm_gen_url(str_replace("{page}",$jj,$pagestr),str_replace("{page}",$jj,$url_pattern),$get_args)."'>".$jj."</a>&nbsp;";
+            $str=$str."<span ><a href='".sm_gen_url(str_replace("{page}",$jj,$pagestr),str_replace("{page}",$jj,$url_pattern),$get_args)."'>".$jj."</a></span>";
     }
     if($pagenow<$pagecount){
-        $str=$str."<a href='".sm_gen_url(str_replace("{page}",$pagenow+1,$pagestr),str_replace("{page}",$pagenow+1,$url_pattern),$get_args)."'>&gt;</a>&nbsp;";
-        $str=$str."<a href='".sm_gen_url(str_replace("{page}",$pagecount,$pagestr),str_replace("{page}",$pagecount,$url_pattern),$get_args)."'>&gt;&gt;</a>&nbsp;";
+        $str=$str."<span><a href='".sm_gen_url(str_replace("{page}",$pagenow+1,$pagestr),str_replace("{page}",$pagenow+1,$url_pattern),$get_args)."'>下一页</a></span>";
+        $str=$str."<span><a href='".sm_gen_url(str_replace("{page}",$pagecount,$pagestr),str_replace("{page}",$pagecount,$url_pattern),$get_args)."'>末页</a></span>";
+    }else{
+        $str=$str."<span>下一页</span><span>&gt;&gt;尾页</span>";
     }
     if($pagecount>1)
         if($jump){
@@ -457,9 +437,6 @@ class smTable{
     private $_pagesize=null;
     private $_page_var = "page";
     private $_extra_args = null;
-    private $_has_manys=array();
-    private $_has_ones=array();
-    private $_belongs_to=array();
     function __construct($table,$primary_key="id",$rconn=null,$wconn=null){
         global $sm_config;
         $this->_table=$table;
@@ -490,69 +467,6 @@ class smTable{
         $rows=sm_fetch_rows("desc ".$this->_table);
         return $rows;
     }
-     /*** {{{ __call : the famous magic method */
-    function __call($name,$args){
-        if(preg_match("/^find_by_/",$name)){
-            //是要根据某些键值来查找数据
-            $temp= substr($name,8,strlen($name)-8);
-            $columns = explode("_and_",$temp);
-            if(sizeof($args)<sizeof($columns)){
-                throw new smException("length of columns and columns not match.");
-                return null;
-            }
-            $values = array();
-            for($i=0;$i<sizeof($columns);$i++){
-                $values[]=array_shift($args);
-            }
-            $conditions = $this->get_select_conditions($columns,$values);
-            $limit=$group_by=$order_by=null;
-            $wanted="*";
-            if(!empty($args[0])){
-                if(!empty($args[0]["where"])){
-                    $conditions[]=$args[0]["where"];
-                }
-                $limit=empty($args[0]["limit"])?null:$args[0]["limit"];
-                $group_by=empty($args[0]["order_by"])?null:$args[0]["group_by"];
-                $order_by=empty($args[0]["order_by"])?null:$args[0]["order_by"];
-                $wanted=empty($args[0]["wanted"])?"*":$args[0]["wanted"];
-            }
-            $cond=join(" AND ",$conditions);
-            return $this->find_by($cond,$wanted,$order_by,$limit,$group_by);
-        }
-        if(preg_match("/^page_by_/",$name)){
-            $temp= substr($name,8,strlen($name)-8);
-            $columns = explode("_and_",$temp);
-            if(sizeof($args)<sizeof($columns)){
-                throw new smException("length of columns and columns not match.");
-                return null;
-            }
-            $values = array();
-            for($i=0;$i<sizeof($columns);$i++){
-                $values[]=array_shift($args);
-            }
-            $conditions = $this->get_select_conditions($columns,$values);
-            $wanted="*";
-            $limit=$group_by=$order_by=null;
-            if(!empty($args[0])){
-                if(!empty($args[0]["where"])){
-                    $conditions[]=$args[0]["where"];
-                }
-                if(!empty($args[0]["limit"])){
-                    throw new smException("you should not specific the limit argument when you call a page_by_[some_field] ");
-                    return null;
-                }
-                $group_by=!empty($args[0]["group_by"])? $order_by=$args[0]["group_by"]:null;
-                $order_by=!empty($args[0]["order_by"])? $order_by=$args[0]["order_by"]:null;
-                $wanted=!empty($args[0]["wanted"])?$args[0]["wanted"]:"*";
-                $per_page= $args[0]["per_page"]>0?$args[0]["per_page"]:( $sm_config["pagesize"]>0?$sm_config["pagesize"]:20);
-                $page= $args[0]["page"]>0?$args[0]["page"]:1;
-            }
-            $cond=join(" AND ",$conditions);
-            $limit = ($page-1)*$per_page.",$per_page"; 
-            return $this->page_by($cond,$wanted,$order_by,$limit,$group_by);
-        }
-    }
-    /*** }}} */
     /*** {{{  find_by 根据指定的条件来查询*/ 
     public function find_by($conditions=null,$wanted="*",$order_by=null,$limit=null,$group_by=null){
         $sql=sm_sql::select($this->_table,$wanted,$conditions,$order_by,$limit,$group_by);
@@ -598,27 +512,6 @@ class smTable{
          return sm_query($sql,$this->_wconn); 
      }
      /** }}} */
-     /*** {{{  __get 
-     */ 
-     public function __get($name)
-     {
-         /*
-         if(array_key_exists($name,$this->_has_ones))
-             $relation=$this->_has_ones($name);
-         elseif(array_key_exists($name,$this->_has_manys))
-             $relation=$this->_has_manys($name);
-         elseif(array_key_exists($name,$this->_belongs_to)){
-             $relation=$this->_has_manys($name);
-         } 
-         if(!empty($relation)){
-             //add your code here;
-         }
-         else
-             throw new smException("assoaction $name of $this->_name not exists;");
-*/
-     }
-     /** }}} */
-     
 }
 /*** }}} */
 
@@ -627,8 +520,8 @@ class smApplication{
     private $_app="smapplication";
     private $_name="smapplication";
     private $_last_action="index";
-    private $before_filters=array();
-    private $after_filters=array();
+    public $before_filters=array();
+    public $after_filters=array();
     
     function __construct($name="smapplication"){
         global $sm_config;
@@ -641,7 +534,7 @@ class smApplication{
         }
     }
     /*** {{{  _before_filter */ 
-    private  function _before_filter($action){
+    function _before_filter($action){
         $var_name = "before_filters_$action";
         foreach($this->$var_name as $method){
             $this->$method();
@@ -652,7 +545,7 @@ class smApplication{
     }
     /** }}} */
      /*** {{{ _after_filter      */ 
-     private function _after_filter($action){
+    function _after_filter($action){
         $var_name = "after_filters_$action";
         foreach($this->$var_name as $method){
             $this->$method();
@@ -664,158 +557,23 @@ class smApplication{
      /** }}} */
     /*** {{{  method_miss */ 
     private function _method_missing($method) {
-        if(preg_match("/(.*)_list$/",$method)){
-            //scaffold_list
-            $this->scaffold_list(substr($method,0,strlen($method)-5));
-            return;
-        }
-        if(preg_match("/(.*)_show$/",$method)){
-            //scaffold_show
-            $this->scaffold_show(substr($method,0,strlen($method)-5));
-            return;
-        }
-        if(preg_match("/(.*)_edit$/",$method)){
-            //scaffold_show
-            $this->scaffold_edit(substr($method,0,strlen($method)-5));
-            return;
-        }
-        if(preg_match("/(.*)_new$/",$method)){
-            //scaffold_new
-            $this->scaffold_new(substr($method,0,strlen($method)-4));
-            return;
-        }
-        if(preg_match("/(.*)_remove$/",$method)){
-            //scaffold_new
-            $this->scaffold_remove(substr($method,0,strlen($method)-7));
-            return;
-        }
         throw new smException("method  missing:".$this->_name."->".$method);
     }
     /** }}} */
-    function scaffold_list($name){
-        global $sm,$sm_data;
-        $table_name="table_".$name;
-        $sm_data["$name"]=$sm->$table_name->page_by();
-        $this->scaffold_list_v($name);
-    }
-    function scaffold_list_v($name){
-        global $sm_data;
-        echo "<table width='98%' border='1'>";
-        foreach($sm_data[$name]["entries"] as $row){
-            echo "<tr>";
-            foreach($row as $k=>$v){
-                if(strlen($v)>100)
-                    echo "<td>...</td>";
-                else
-                    echo "<td>$v</td>";
-            }
-            echo "<td><a href='?action=$name"."_show&id=".$row["id"]."'>show</a></td>";
-            echo "<td><a href='?action=$name"."_edit&id=".$row["id"]."'>edit</a></td>";
-            echo "<td><a href='?action=$name"."_remove&id=".$row["id"]."'>remove</a></td>";
-            echo "</tr>";
-        }
-        echo "</table>";
-        echo $sm_data[$name]["page"];
-    }
-    function scaffold_show($name){
-        global $sm,$sm_data;
-        $table_name="table_".$name;
-        $sm_data["$name"]=$sm->$table_name->find_row_by("id='".         mysql_escape_string($_GET["id"])."'");
-        $this->scaffold_show_v($name);
-    }
-    function scaffold_show_v($name){
-        global $sm,$sm_data;
-        echo "<table>";
-        foreach($sm_data[$name] as $k=>$v){
-            echo "<tr><th>$k</th><td>$v</td>";
-        }
-        echo "</table>";
-    }
-    function scaffold_new($name){
-        global $sm,$sm_data;
-        if($sm->env_REQUEST_METHOD=="POST"){
-            $table_name="table_".$name;
-            $sm->$table_name->create($_POST[$name]); 
-            header("Location?action=".$name."_list");
-        }
-        else{
-            $table_name="table_".$name;
-            $fields = $sm->$table_name->desc();
-            $sm_data[$name]=array();
-            foreach($fields as $v){
-                if(!is_null($v["Default"]))
-                    $sm_data[$name][$v["Field"]]=$v["Default"];
-                else
-                    $sm_data[$name][$v["Field"]]="";
-
-            }
-            $this->scaffold_new_v($name);
-        }
-    }
-    function scaffold_edit($name){
-        global $sm,$sm_data;
-        $table_name="table_".$name;
-        if($sm->env_REQUEST_METHOD=="POST"){
-            $sm->$table_name->update_by("id='".mysql_escape_string($_GET["id"])."'",$_POST[$name]); 
-            header("Location?action=".$name."_list");
-        }
-        else{
-            $sm_data[$name]=$sm->$table_name->find_row_by("id='".mysql_escape_string($_GET["id"])."'");
-            $this->scaffold_edit_v($name);
-        }
-    }
-    function scaffold_edit_v($name){
-        global $sm,$sm_data;
-        $f=new smForm($name,$sm_data[$name]); 
-        echo "<form method='POST'>";
-        foreach($sm_data[$name] as $k=>$v){
-            echo '<p>';
-            echo '<label for="'.$name.'_'.$k.'">'.$k."</label>";
-            if(strlen($v)>100)
-                echo $f->text_area($k,array("rows"=>8,"cols"=>100));
-            else
-                echo $f->text_field($k);
-
-            echo '</p>';
-        } 
-        echo "<input type='submit' >";
-        echo "</form>";
-    }
-    function scaffold_new_v($name){
-        global $sm,$sm_data;
-        $table_name = "table_".$name;
-        $f=new smForm($name,$sm_data[$name]); 
-        echo "<form method='POST'>";
-        foreach($sm_data[$name] as $k=>$v){
-            echo '<p>';
-            echo '<label for="'.$name.'_'.$k.'">'.$k."</label>";
-            echo $f->text_field($k);
-            echo '</p>';
-        } 
-        echo "<input type='submit' >";
-        echo "</form>";
-    }
-    function scaffold_remove($name){
-        global $sm;
-        $table_name = "table_".$name;
-        $sm->$table_name->delete_by("id='".mysql_escape_string($_GET["id"])."'");
-        header("Location:?action=$name"."_list");
-    }
     /*** {{{ v include the view files;*/
     function v($action=null){
         global $sm_config;
         if(is_null($action))
             $action=$this->_last_action;
         $mod=$this->_name;
-        if($sm_config["use_layout"])
-        {
+        if($sm_config["use_layout"]){
             //如果使用布局并且布局文件存在...
-            return 
-                include($sm_config["app_root"]."layouts/$mod.php") || include($sm_config["app_root"]."views/$mod/$action.php");
+                if(!include($sm_config["app_root"]."/app/layouts/$mod.php") )
+                    return include($sm_config["app_root"]."/app/views/$mod/$action.php");
+                else return true;
         }
-        else
-        {
-               return include($sm_config["app_root"]."views/$mod/$action.php");
+        else{
+               return include($sm_config["app_root"]."/app/views/$mod/$action.php");
         }
     }
     /*** }}} */
@@ -838,13 +596,14 @@ class smApplication{
     }
     /** }}} */
     public function yield(){
-        return include($sm_config["app_root"]."views/".$this->_name."/".$this->_last_action.".php");
+        global $sm_config;
+        return include($sm_config["app_root"]."/app/views/".$this->_name."/".$this->_last_action.".php");
     }
     /*** {{{ establish_connect 建立默认连接,默认情况下读写用同一个链接; */
     public function establish_connect(){
         global $sm;
-        $this->_rconn=$sm->dbo_0;
-        $this->_wconn=$sm->dbo_1;
+        $this->_rconn=$sm->dbo_1;
+        $this->_wconn=$sm->dbo_0;
     }
     /*** }}} */
     /*** {{{ __get magic method;*/
@@ -915,10 +674,12 @@ class smForm
         $html_attrs["value"]=$value;
         return $this->input($field_name,$html_attrs);
     }
-    function check_box($field_name,$html_attrs=array()){
-        $value=$this->_get_value($field_name,$html_attrs);
-        $html_attrs["type"]="check_box";
-        $html_attrs["value"]=$value;
+    function check_box($field_name,$html_attrs=array("type"=>"check_box")){
+        if(!isset($html_attrs["value"]))
+            throw new smException("check_box must specific a value");
+        $checked_value=$this->_get_value($field_name,array());
+        if($checked_value==$html_attrs["value"])
+            $html_attrs["checked"]="checked";
         return $this->input($field_name,$html_attrs);
     }
     function submit($value="提交",$html_attrs=array()){
@@ -975,7 +736,7 @@ class smForm
 /*** }}} */
 /*** {{{  run_sm */ 
 function run_sm($controller=null,$action=null) {
-    global $sm_temp;
+    global $sm_temp,$sm_config;
     if(is_null($controller)) 
         $sm_temp["controller"]=empty($_GET["controller"])?  "smapplication":strtolower($_GET["controller"]);
     else
@@ -984,9 +745,10 @@ function run_sm($controller=null,$action=null) {
         $sm_temp["action"]=empty($_GET["action"])?  "index":strtolower($_GET["action"]);
     else
         $sm_temp["action"]=$action;
-    if(!class_exists($name))
-        include_once($sm_config["app_root"]."/app/".strtolower($name).".php");
-    $app=new $sm_temp["controller"]();
+
+    if(!class_exists($sm_temp["controller"]))
+        include_once($sm_config["app_root"]."/app/".strtolower($sm_temp["controller"]).".php");
+    $app=new $sm_temp["controller"]($sm_temp["controller"]);
     return $app->dispatch($sm_temp["action"]); 
 }
 /** }}} */
