@@ -196,6 +196,7 @@ class smCache {
     private $_servers;
     private $_memcache;
     private $_flag=0;
+    public $expire=7200;
     /*** {{{  __construct */ 
     public function __construct($group_id){
         global $sm_config;
@@ -222,6 +223,12 @@ class smCache {
         $this->_flag = $flag;
     }
     /*** }}} */
+    function __get($name){
+        return $this->get_data($name);
+    }
+    function __set($name,$value){
+        return $this->set_data($name,$value,$this->expire);
+    }
 }
 /** * }}}  */
 /** {{{ static class sm_sql  帮助构造SQL语句的小工具类;
@@ -350,17 +357,26 @@ function sm_dbo($id=0){
 /** }}} */
 /*** {{{  sm_query 执行一条sql查询并返回结果 */ 
 function sm_query($sql,$conn=null){
-    global $sm_config;
+    global $sm_config,$sm_temp;
+    $sm_temp["sqls"][]=$sql;
     if($sm_config["sql_debug"]){
         error_log($sql);
     }
+    smDoEvent("before_query",$sql);
     $ret=is_null($conn)?mysql_query($sql):mysql_query($sql,$conn);//不指定conn时,mysql会调用默认连接
     if(!$ret){
-        if(is_null($conn))
+        if(is_null($conn)){
+            smDoEvent("query_fail",array("sql"=>$sql,"error_no"=>mysql_error()));
             throw new smException("mysql error:sql:$sql,error descrption:".mysql_error());
-        else
+        }
+        else{
+            smDoEvent("query_fail",array("sql"=>$sql,"error_no"=>mysql_error($conn)));
             throw new smException("mysql error:sql:$sql,error descrption:".mysql_error($conn));
+        }
+    }else{
+        smDoEvent("query_succeed",array("sql"=>$sql,"resource"=>$ret));
     }
+    smDoEvent("after_query",$sql);
     return $ret;
 }
 /** }}} */
@@ -371,18 +387,67 @@ function sm_fetch_row($sql,$conn=null){
 }
 /** }}} */
 /*** {{{  sm_fetch_rows 取出sql查询的多条结果 */ 
-function sm_fetch_rows($sql,$conn=null){
+function sm_fetch_rows($sql,$conn=null,$type=MYSQL_ASSOC){
     global $sm_config;
     $rs=sm_query($sql,$conn);
     if(!empty($rs)){
         $rows=array();
-        while($row=mysql_fetch_assoc($rs)){
+        while($row=mysql_fetch_array($rs,$type)){
             $rows[]=$row;
         }
         return $rows;
     }
 }
 /** }}} */
+class smObject {
+    /*** {{{  __get 
+     * the main magic method
+     */ 
+    public $default_primary_key = "id";
+    public function __get($name)
+    {
+        global $sm_config,$sm_temp,$sm_data;
+        if(!empty($sm_config[$name]))
+            return $sm_config[$name];
+        if(!empty($sm_temp[$name]))
+            return $sm_temp[$name];
+        if(!empty($sm_data[$name]))
+            return $sm_data[$name];
+        if(preg_match("/^get_(.*)+$/",$name)){
+            $id = substr($name,4,strlen($name));
+            $sm_temp["get_".$id]=$_GET[$id];
+            return $sm_temp["get_$id"];
+        }
+        if(preg_match("/^env_(.*)+$/",$name)){
+            $id = substr($name,4,strlen($name));
+            $sm_temp["env_".$id]=$_SERVER[$id];
+            return $sm_temp["env_$id"];
+        }
+        if(preg_match("/^post_(.*)+$/",$name)){
+            $id = substr($name,5,strlen($name));
+            $sm_temp["post_".$id]=$_POST[$id];
+            return $sm_temp["post_$id"];
+        }
+        if(preg_match("/^dbo_(.*)+$/",$name)){
+            $id = substr($name,4,strlen($name));
+            $sm_temp["dbo_".$id]=sm_dbo($id);
+            return $sm_temp["dbo_$id"];
+        }
+        if(preg_match("/^table_(.*)$/",$name)){
+            $table_name = substr($name,6,strlen($name));
+            $table = new smTable($table_name,$this->default_primary_key,$this->dbo_0,$this->dbo_1);
+            $sm_temp[$name]=$table;
+            return $table;
+        }
+        if(preg_match("/^cache_(.*)$/",$name)){
+            $cache_group = substr($name,6,strlen($name));
+            $cache = new smCache($cache_group);
+            $sm_temp[$name]=$cache;
+            return $cache;
+        }
+    }
+    /** }}} */
+}
 class smException  extends Exception{}
 /** {{{ class smTable **/
 class smTable{
@@ -421,6 +486,10 @@ class smTable{
             return $conditions; 
     }
     /** }}} */
+    function desc(){
+        $rows=sm_fetch_rows("desc ".$this->_table);
+        return $rows;
+    }
      /*** {{{ __call : the famous magic method */
     function __call($name,$args){
         if(preg_match("/^find_by_/",$name)){
@@ -533,6 +602,7 @@ class smTable{
      */ 
      public function __get($name)
      {
+         /*
          if(array_key_exists($name,$this->_has_ones))
              $relation=$this->_has_ones($name);
          elseif(array_key_exists($name,$this->_has_manys))
@@ -545,16 +615,21 @@ class smTable{
          }
          else
              throw new smException("assoaction $name of $this->_name not exists;");
+*/
      }
      /** }}} */
      
 }
 /*** }}} */
+
 /** {{{  smApplication Mvc 功能主要在这里实现;**/
 class smApplication{
     private $_app="smapplication";
     private $_name="smapplication";
     private $_last_action="index";
+    private $before_filters=array();
+    private $after_filters=array();
+    
     function __construct($name="smapplication"){
         global $sm_config;
         $this->_name=$name;
@@ -589,46 +664,187 @@ class smApplication{
      /** }}} */
     /*** {{{  method_miss */ 
     private function _method_missing($method) {
+        if(preg_match("/(.*)_list$/",$method)){
+            //scaffold_list
+            $this->scaffold_list(substr($method,0,strlen($method)-5));
+            return;
+        }
+        if(preg_match("/(.*)_show$/",$method)){
+            //scaffold_show
+            $this->scaffold_show(substr($method,0,strlen($method)-5));
+            return;
+        }
+        if(preg_match("/(.*)_edit$/",$method)){
+            //scaffold_show
+            $this->scaffold_edit(substr($method,0,strlen($method)-5));
+            return;
+        }
+        if(preg_match("/(.*)_new$/",$method)){
+            //scaffold_new
+            $this->scaffold_new(substr($method,0,strlen($method)-4));
+            return;
+        }
+        if(preg_match("/(.*)_remove$/",$method)){
+            //scaffold_new
+            $this->scaffold_remove(substr($method,0,strlen($method)-7));
+            return;
+        }
         throw new smException("method  missing:".$this->_name."->".$method);
     }
     /** }}} */
-     /*** {{{ v include the view files;*/
+    function scaffold_list($name){
+        global $sm,$sm_data;
+        $table_name="table_".$name;
+        $sm_data["$name"]=$sm->$table_name->page_by();
+        $this->scaffold_list_v($name);
+    }
+    function scaffold_list_v($name){
+        global $sm_data;
+        echo "<table width='98%' border='1'>";
+        foreach($sm_data[$name]["entries"] as $row){
+            echo "<tr>";
+            foreach($row as $k=>$v){
+                if(strlen($v)>100)
+                    echo "<td>...</td>";
+                else
+                    echo "<td>$v</td>";
+            }
+            echo "<td><a href='?action=$name"."_show&id=".$row["id"]."'>show</a></td>";
+            echo "<td><a href='?action=$name"."_edit&id=".$row["id"]."'>edit</a></td>";
+            echo "<td><a href='?action=$name"."_remove&id=".$row["id"]."'>remove</a></td>";
+            echo "</tr>";
+        }
+        echo "</table>";
+        echo $sm_data[$name]["page"];
+    }
+    function scaffold_show($name){
+        global $sm,$sm_data;
+        $table_name="table_".$name;
+        $sm_data["$name"]=$sm->$table_name->find_row_by("id='".         mysql_escape_string($_GET["id"])."'");
+        $this->scaffold_show_v($name);
+    }
+    function scaffold_show_v($name){
+        global $sm,$sm_data;
+        echo "<table>";
+        foreach($sm_data[$name] as $k=>$v){
+            echo "<tr><th>$k</th><td>$v</td>";
+        }
+        echo "</table>";
+    }
+    function scaffold_new($name){
+        global $sm,$sm_data;
+        if($sm->env_REQUEST_METHOD=="POST"){
+            $table_name="table_".$name;
+            $sm->$table_name->create($_POST[$name]); 
+            header("Location?action=".$name."_list");
+        }
+        else{
+            $table_name="table_".$name;
+            $fields = $sm->$table_name->desc();
+            $sm_data[$name]=array();
+            foreach($fields as $v){
+                if(!is_null($v["Default"]))
+                    $sm_data[$name][$v["Field"]]=$v["Default"];
+                else
+                    $sm_data[$name][$v["Field"]]="";
+
+            }
+            $this->scaffold_new_v($name);
+        }
+    }
+    function scaffold_edit($name){
+        global $sm,$sm_data;
+        $table_name="table_".$name;
+        if($sm->env_REQUEST_METHOD=="POST"){
+            $sm->$table_name->update_by("id='".mysql_escape_string($_GET["id"])."'",$_POST[$name]); 
+            header("Location?action=".$name."_list");
+        }
+        else{
+            $sm_data[$name]=$sm->$table_name->find_row_by("id='".mysql_escape_string($_GET["id"])."'");
+            $this->scaffold_edit_v($name);
+        }
+    }
+    function scaffold_edit_v($name){
+        global $sm,$sm_data;
+        $f=new smForm($name,$sm_data[$name]); 
+        echo "<form method='POST'>";
+        foreach($sm_data[$name] as $k=>$v){
+            echo '<p>';
+            echo '<label for="'.$name.'_'.$k.'">'.$k."</label>";
+            if(strlen($v)>100)
+                echo $f->text_area($k,array("rows"=>8,"cols"=>100));
+            else
+                echo $f->text_field($k);
+
+            echo '</p>';
+        } 
+        echo "<input type='submit' >";
+        echo "</form>";
+    }
+    function scaffold_new_v($name){
+        global $sm,$sm_data;
+        $table_name = "table_".$name;
+        $f=new smForm($name,$sm_data[$name]); 
+        echo "<form method='POST'>";
+        foreach($sm_data[$name] as $k=>$v){
+            echo '<p>';
+            echo '<label for="'.$name.'_'.$k.'">'.$k."</label>";
+            echo $f->text_field($k);
+            echo '</p>';
+        } 
+        echo "<input type='submit' >";
+        echo "</form>";
+    }
+    function scaffold_remove($name){
+        global $sm;
+        $table_name = "table_".$name;
+        $sm->$table_name->delete_by("id='".mysql_escape_string($_GET["id"])."'");
+        header("Location:?action=$name"."_list");
+    }
+    /*** {{{ v include the view files;*/
     function v($action=null){
         global $sm_config;
         if(is_null($action))
             $action=$this->_last_action;
-        $path= $sm_config["app_root"]."/app/views/".$this->_name."/$action.php";
-        if(!include($path))
-            echo "view file [$path] not exists";
+        $mod=$this->_name;
+        if($sm_config["use_layout"])
+        {
+            //如果使用布局并且布局文件存在...
+            return 
+                include($sm_config["app_root"]."layouts/$mod.php") || include($sm_config["app_root"]."views/$mod/$action.php");
+        }
+        else
+        {
+               return include($sm_config["app_root"]."views/$mod/$action.php");
+        }
     }
     /*** }}} */
     /*** {{{  dispatch run the filters and real action method;*/ 
     public function dispatch($action){
         global $sm_config;
-        $this->_last_action = $action;
+        $this->_last_action =$this->_app->_last_action= $action;
         $methods=get_class_methods($this->_app);
-        if(in_array($action,$methods)){
-            $this->_app->_before_filter($action);
-            $this->_app->$action();
-            $this->_app->_after_filter($action);
-            return true;
-        }
-        if(in_array("action_".$action,$methods)){
-            $method="action_".$action;
+        if(
+        (in_array($action,$methods) && ($method=$action)) ||
+        ( in_array("action_".$action,$methods) &&($method="action_".$action))){
             $this->_app->_before_filter($action);
             $this->_app->$method();
             $this->_app->_after_filter($action);
             return true;
         }
         /* 如果views 文件也不存在,那就调用method_missing方法; */
-        if(!include($sm_config["app_root"]."/app/views/".$this->_name."/$action.php"))
-            $this->_app->_method_missing($action);
+        $this->_app->_method_missing($action);
         return false;
     }
     /** }}} */
+    public function yield(){
+        return include($sm_config["app_root"]."views/".$this->_name."/".$this->_last_action.".php");
+    }
     /*** {{{ establish_connect 建立默认连接,默认情况下读写用同一个链接; */
     public function establish_connect(){
-       return  $this->_rconn =$this->_wconn=sm_dbo(0);
+        global $sm;
+        $this->_rconn=$sm->dbo_0;
+        $this->_wconn=$sm->dbo_1;
     }
     /*** }}} */
     /*** {{{ __get magic method;*/
@@ -638,6 +854,30 @@ class smApplication{
     /*** }}} */
 }
 /*** }}} */
+function sm_tag($tagname,$html_attrs=array(),$inner_html=""){
+    $str="<$tagname ";
+    if(is_array($html_attrs)){
+    foreach($html_attrs as $k=>$v){
+        $str.= "$k='".htmlspecialchars($v)."' ";
+    }
+    }
+    else{
+        $str .= $html_attrs;
+    }
+    if(!empty($inner_html))
+        $str .= ">".$inner_html."</$tagname>";
+    else
+        $str .= "/>";
+    return $str;
+}
+function image_tag($src,$html_attrs=array()){
+    global $sm_config;
+    $src = $sm_config["image_path"]."$src";
+    if(is_array($html_attrs))
+        return sm_tag("img",array_merge($html_attrs,array("src"=>$src)));
+    else
+        return sm_tag("img",$html_attrs." src='".htmlspecialchars($src)."'");
+}
 /** {{{ class Form **/
 class smForm
 {
@@ -663,19 +903,19 @@ class smForm
     function end(){
         return "</form>";
     }
-    function textarea($field_name,$html_attrs){
+    function text_area($field_name,$html_attrs=array()){
         $value=$this->_get_value($field_name,$html_attrs);
         $html= $this->_left("textarea",$field_name,$html_attrs);
         $html.=">".htmlspecialchars($value)."</textarea>";
         return $html;
     }
-    function text_field($field_name,$html_attrs){
+    function text_field($field_name,$html_attrs=array()){
         $value=$this->_get_value($field_name,$html_attrs);
         $html_attrs["type"]="text";
         $html_attrs["value"]=$value;
         return $this->input($field_name,$html_attrs);
     }
-    function check_box($field_name,$html_attrs){
+    function check_box($field_name,$html_attrs=array()){
         $value=$this->_get_value($field_name,$html_attrs);
         $html_attrs["type"]="check_box";
         $html_attrs["value"]=$value;
@@ -685,7 +925,7 @@ class smForm
         $html_attrs["type"]="submit";
         return $this->button("",$html_attrs,$value);
     }
-    function select($field_name,$values,$html_attrs){
+    function select($field_name,$values,$html_attrs=array()){
         $value=$this->_get_value($field_name,$html_attrs);
         $select_html = $this->_left("select",$field_name,$html_attrs);
         foreach($values as $v){
@@ -744,7 +984,10 @@ function run_sm($controller=null,$action=null) {
         $sm_temp["action"]=empty($_GET["action"])?  "index":strtolower($_GET["action"]);
     else
         $sm_temp["action"]=$action;
-    $app=new smApplication($sm_temp["controller"]);
+    if(!class_exists($name))
+        include_once($sm_config["app_root"]."/app/".strtolower($name).".php");
+    $app=new $sm_temp["controller"]();
     return $app->dispatch($sm_temp["action"]); 
 }
 /** }}} */
+$sm= new smObject();
