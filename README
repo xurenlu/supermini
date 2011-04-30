@@ -1,3 +1,92 @@
+[神啊你告诉我如何实现belongs_to ,has_one,has_many,has_many_through同时还能把代码控制在1000行以内??祈祷一个....]
+Supermini 顾名思义,是一个特别小巧的PHP框架.我的目标是将它的代码量控制在1000行以内,以便使用者能在1天之内将整个代码读完,并理解我的意图.同时,框架的功能能够大幅减轻开发人员的工作量;整个框架从ruby on rails 借鉴了许多,同时写得比较Magic,可能会影响可阅读性,不过也唯有这样才能实现很magic的功能;
+特别适合懒人.
+在开发过程中,我一会加功能,一会又大幅删减功能.
+目前这个框架仍然处于活跃的开发当中.同时我仍然在考虑大幅改进,因此暂时不适合直接将这个框架使用大型生产项目中;不过只要您花一定工夫将代码读一遍,自行做一些修改也是没有问题的.
+这个框架使用一个叫$sm_config的数组来进行一些配置的设置,放在sm_config.php;您可以根据自己的需要来进行设置;比如设置数据库连接信息等;注意如果您不是确知自己在干些什么的话,不要删除sm_config中的某些项,那可能导致某些功能不能正常运转;
+数据库连接在$sm_config["mysql"][0]和$sm_config["mysql"][1]中.如果您没有设置主从,可以将两个信息设置成相同.如果需要使用主从,则0是主mysql的住处,1是从mysql的信息;
+
+整个框架主要的类有这些:
+smChainable:一些具有类似于jquery中$对象一些属性的类;就是方法的返回值仍然是这个对象本身.不关心方法的返回值,只关注执行这个方法产生的副作用.就提供了一个set方法.当调用未定义的方法时,实质是写属性值.比如调用smChainable::table("user"),table这个方法并不存在,因为就调用了smChainable::__call方法用写这个table属性了;
+smDB 花了很大力气写的数据库处理类.替代了上一代中的smTable类;
+    用法:
+    $obj=new smDB();
+    $smDB->prepare_dbo();
+    $smDB->table("users")->select("*")->where("gender='m')->limit("100,10")->rows(); 
+smForm
+    也是花了一些力气去写的一个类;主要是为了帮助生成表单项;也是借鉴rails比较多;看下面的代码:
+    $userinfo=array("username"=>'xurenlu',"email"=>"xurenlu@gmail.com","gender"=>"m");
+    $form=new smForm("user",$userinfo);
+    echo $form->caption("username","用户名:");
+    echo $form->class("my_txt")->textbox("username");
+    echo "<hr/>";
+    echo $form->caption("email","邮箱:");
+    echo $form->class("email-txt")->textbox("email");
+    echo $form->submitbox("提交");
+    echo $form->closeform();
+smSql
+    
+    echo  smSql::update( "users", array( "id"=>"111", "name"=>"uxferwe'fdsf", "pass"=>"fdsfdsfu2323\\fsdfdsf/'fsdfsdf\""), "id=9999");
+    echo  smSql::insert( "users", array( "id"=>"111", "name"=>"uxferwe'fdsf", "pass"=>"fdsfdsfu2323\\fsdfdsf/'fsdfsdf\""));
+    echo  smSql::select( "users", "*", "id>9999", "id desc", "limit 100", "age");
+
+smObject
+    这个类可以说是使用supermini的入口类了,框架已经设定了$sm变量了($sm=new smObject());调它的很多属性可以直接得到某一种对象;
+    比如调用$sm->db就直接得到smDB的对象,调用$sm->form就得到了已经预先建立的smForm对象了;
+
+smApplication
+    使用MVC模式时可以看一下代码;基本上也都是rails类似的东西;
+
+smCache,主要就两个函数,get和set,和memcache的使用几乎没啥两样;
+   
+关于URL静态化:
+    URL的静态化由以下全局函数sm_gen_url,sm_test_urlencode,sm_urlmap,sm_open_shorturl, sm_get_url_fields, sm_compile_models, sm_handle_url和这三个配置选项:$sm_config["url_routes"],$sm_config["url_maps"],$sm_config["url_namespace"]配合完成;
+   $sm_config["url_routes"]=基本是参照了rails的url routes配置来的,但是又不一样;$sm_config配置中的相关变量已经在sm_config.php中有所体现了;
+
+
 Supermini:One file PHP framework
 	Suitable for lazy guy.
-
+<?php
+/*
+ * @see smObject
+ * @code
+ *	$sm=new smObject;
+ *	//此时自动用memcache1的配置创建memcache对象.
+ *	print $sm->cache_memcache1->get("site_config_name");
+ *	print $sm->dbo_default;//自动连接数据库了,用的是sm_config["mysql"]["default"];
+ * @endcode
+ *
+ * @see smSql
+ * @code
+ * smSql::update( "users", array( "id"=>"111", "name"=>"uxferwe'fdsf", "pass"=>"fdsfdsfu2323\\fsdfdsf/'fsdfsdf\""), "id=9999");
+ * smSql::insert( "users", array( "id"=>"111", "name"=>"uxferwe'fdsf", "pass"=>"fdsfdsfu2323\\fsdfdsf/'fsdfsdf\""));
+ * smSql::select( "users", "*", "id>9999", "id desc", "limit 100", "age");
+ * @endcode
+ */
+    assert_more() && assert($sm->form->html("input")=="<input />") && assert_no_error();
+    assert_more() && assert(
+        '<select id="user_user" name="user[user]" ><option value="1" >China</option><option value="2" >US</option></select>' == $sm->form->form("user",$user)->selectbox("user",array(array(1,"China"),array(2,"US")))
+    )
+    && assert_no_error();
+    assert_more() && assert(
+        '<select id="_user" name="[user]" ><option value="1" >China</option><option value="2" >US</option></select>' == $sm->form->selectbox("user",array(array(1,"China"),array(2,"US")))
+    ) && assert_no_error();
+    assert_more() && assert(
+            '<img src="logo.jpg" />' == $sm->form->src("logo.jpg")->html("img")
+        ) && assert_no_error();
+    $sql="create table users (id bigint(11) auto_increment,username varchar(32) NULL ,email varchar(32) NULL,primary key (id))";
+    assert_more() && assert($sm->db->query($sql)) && assert_no_error();
+    $array=array("username"=>"xurenlu","email"=>"xurenlu@Gmail.com");
+    assert_more() && assert($sm->db->table("users")->values($array)->insert()) && assert_no_error();
+    assert_more() && assert( $sm->db->insert_id()==1) && assert_no_error();
+    $row=$sm->db->table("users")->row();
+    assert_more() && assert($row==array("id"=>1,"username"=>"xurenlu","email"=>"xurenlu@Gmail.com")) && assert_no_error();
+    $array=array("username"=>"hello","email"=>"hello@Gmail.com");
+    assert_more() && assert($sm->db->table("users")->values($array)->insert()) && assert_no_error();
+    assert_more() && assert( $sm->db->insert_id()==2) && assert_no_error();
+    assert_more() && assert($sm->db->table("users")->where("id>1")->count()==1) && assert_no_error();
+    assert_more() && assert($sm->db->table("users")->count()==2) && assert_no_error();
+    assert_more() && assert($sm->db->table("users")->where("id=1")->delete()) && assert_no_error();
+    assert_more() && assert($sm->db->table("users")->count()==1) && assert_no_error();
+    assert_more() && assert($sm->db->affected_rows()==1) && assert_no_error();
+    assert_more() && assert($sm->db->query("drop table users")) && assert_no_error();

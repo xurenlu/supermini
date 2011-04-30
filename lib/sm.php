@@ -16,6 +16,7 @@
  1.Mysql是相当好用的，所以，这个框架只支持用mysql做数据库。没有设计一大堆的DBDriver;
  2.做cache,Memcache足够好用了，因此,内置的一些cache支持是基于memcache的;
  3.只用最好的，最必需的,精简精简再精简~
+
      </pre>
      * 
  */
@@ -100,6 +101,12 @@ function sm_test_urlencode($var){
  * @param int $l 	当前页链接的左边保留多少个链接
  * @param int $r 	当前页链接的右边保留多少个链接
  * @param int $jump 是否加跳转表单。但是当前只有一页时，不显示此跳转表单。
+ *
+ * @code
+ * echo sm_pagenav_default(18332,20);
+ * echo sm_pagenav_default(18244,25,"index.php?page={page}",array("key"=>1),"page",3,3);
+ * echo sm_pagenav_default(18244,25,null,array("key"=>1),"page",3,3);
+ * @endcode
  */
 function sm_pagenav_default($total,$pagesize=null,$pagestr=null,$get_args=null,$page_var_name="page",$l=4,$r=4,$jump=false){
     global $sm_temp;
@@ -252,7 +259,7 @@ class smSql{
             $cols=join(",",$columns);
         else
             $cols=$columns;
-        $sql="	SELECT ".$columns." From ".$table;
+        $sql="	SELECT ".$columns." FROM ".$table;
         if(!is_null($join)){
             $sql.=" $join ";
         }
@@ -394,6 +401,7 @@ class smObject {
         }
         if($name=="db"){
             $sm_temp[$name]=new smDB();  
+            $sm_temp[$name]->prepare_dbo();
             return $sm_temp[$name];
         }
         if($name=="form"){
@@ -469,9 +477,6 @@ class smDB extends smChainable {
      * 预备数据库连接;
      * */
     function prepare_dbo(){
-        if($this->_rconn && $this->_wconn){
-            return $this;
-        }
         if(!$this->_rconn){ 
             if($this->attrs["rconn"])
                 $this->_rconn=$this->attrs["rconn"];
@@ -494,7 +499,7 @@ class smDB extends smChainable {
     }
 
     function rows($clear=true){
-        $sql=smSql::select($this->attrs["from"],$this->attrs["select"],$this->attrs["where"],$this->attrs["order_by"],$this->attrs["limit"],$this->attrs["group_by"],$this->attrs["join"],$this->attrs["on"]);
+        $sql=smSql::select($this->attrs["table"],$this->attrs["select"],$this->attrs["where"],$this->attrs["order_by"],$this->attrs["limit"],$this->attrs["group_by"],$this->attrs["join"],$this->attrs["on"]);
         $rows=sm_fetch_rows($sql,$this->_rconn);
         if($clear)
             $this->reset();
@@ -512,8 +517,8 @@ class smDB extends smChainable {
 		return $temp;
 	}
     function row($clear=true){
-        $sql=smSql::select($this->attrs["from"],$this->attrs["select"],$this->attrs["where"],$this->attrs["order_by"],$this->attrs["limit"],$this->attrs["group_by"],$this->attrs["join"],$this->attrs["on"]);
-        $rows=sm_fetch_row($sql,$this->_rconn);
+        $sql=smSql::select($this->attrs["table"],$this->attrs["select"],$this->attrs["where"],$this->attrs["order_by"],$this->attrs["limit"],$this->attrs["group_by"],$this->attrs["join"],$this->attrs["on"]);
+        $row=sm_fetch_row($sql,$this->_rconn);
         if($clear)
             $this->reset();
         return $row; 
@@ -531,8 +536,8 @@ class smDB extends smChainable {
         $this->reset();
         return array("total"=>$total,"entries"=>$rows,"page"=>$pagestr);
     }
-    function count(){
-        $sql=smSql::select($this->attrs["from"],"count(*) as c",$this->attrs["where"],$this->attrs["order_by"],"1",$this->attrs["group_by"],$this->attrs["join"],$this->attrs["on"]);
+    function count($clear=true){
+        $sql=smSql::select($this->attrs["table"],"count(*) as c",$this->attrs["where"],$this->attrs["order_by"],"1",$this->attrs["group_by"],$this->attrs["join"],$this->attrs["on"]);
         $row=sm_fetch_row($sql,$this->_rconn);
 		if($clear)
 	    	$this->reset();
@@ -542,30 +547,39 @@ class smDB extends smChainable {
     function insert_id(){
         return mysql_insert_id($this->_wconn); 
     }
+    function affected_rows(){
+        return mysql_affected_rows($this->_wconn);
+    }
     function desc(){
         $rows=sm_fetch_rows("desc ".$this->_table,$this->_rconn);
         return $rows;
     }
 	/***  update_by 根据条件更新数据;*/ 
-    function update(){
+    function update($clear=true){
         $sql=smSql::update($this->attrs["table"],$this->attrs["values"],$this->attrs["limit"]);
 		if($clear)
 	    	$this->reset();	
         return sm_query($sql,$this->_wconn); 
     }
  	/***  delete_by */ 
-    public function delete(){
+    function delete($clear=true){
         $sql=smSql::delete($this->attrs["table"],$this->attrs["where"]);
 		  if($clear)
 	            $this->reset();
         return sm_query($sql,$this->_wconn);
     }
-	public function insert($type="INSERT"){
+	function insert($type="INSERT",$clear=true){
 		$sql=smSql::insert($this->attrs["table"],$this->attrs["values"],$type);
 		  if($clear)
 	            $this->reset();
         return sm_query($sql,$this->_wconn);
-	}
+    }
+    function create($type="INSERT",$clear=true){
+        return $this->insert($type,$clear);
+    }
+    function query($sql){
+        return sm_query($sql,$this->_wconn);
+    }
 }
 function sm_template($file) {
     global $sm_config;
@@ -578,7 +592,7 @@ function sm_template($file) {
 }
 function sm_parse_template($tplfile, $objfile) {
     $nest = 5;
-    if(!@$fp = fopen($tplfile, 'r')) {
+    if(!$fp = fopen($tplfile, 'r')) {
         exit("Current template file '$tplfile' not found or have no access!");
     }
     $template = fread($fp, filesize($tplfile));
@@ -840,7 +854,7 @@ class smForm extends smChainable{
         return $html;
     }
     /** 输出一个提交按钮 */
-    function submit($value="提交"){
+    function submitbox($value="提交"){
         $html_attrs["type"]="submit";
         $html=$this->build("button","",$value);
         $this->reset();
@@ -928,44 +942,91 @@ function run_sm($controller=null,$action=null) {
     $app=new $sm_temp["controller"]($sm_temp["controller"]);
     return $app->dispatch($sm_temp["action"]); 
 }
+/* url转换器，1为请求转换，就是把类似q-替换为question/view
+2为反向转换，就是把类似/question/view/替换为q-
+*/
+function sm_urlmap($var, $direction=1) {
+    global $sm_config;
+    $replaces=$sm_config["url_maps"];
+    (2 == $direction) && $replaces = array_flip($replaces);
+    return str_replace(array_keys($replaces), array_values($replaces), $var);
+}
+/**
+ * 关于URL静态化的处理的例子
+@code
+$parse_models=
+    array(
+        "{controller}/{action}.{format}",
+        "{controller}/{action}/{id}-{cate}-{page}.{format}"=>
+        array(
+            "controller"=>"([^.^\/]*)",
+            "action"=>"([^.]*)"
+        ),
+        "{controller}/{action}/{id}.{format}"
+    );
+$url="hello/world/test/4-1-3.html";
+$parsed_patterns=(sm_compile_models($parse_models));
+$url="hello/world/test/4-1-3.html";
+print_r(sm_handle_url($parsed_patterns,$url));
+@endcode
+ */
+function sm_open_shorturl(){
+    global $sm_config;
+    $url=substr($_SERVER["PHP_SELF"],18);
+    $url=$_SERVER["PHP_SELF"];
+    $url=sm_urlmap($url,1);
+    echo $url."<br>";
+    $parsed_patterns=(sm_compile_models($sm_config["url_routes"],$sm_config["url_namespace"]));
+    return sm_handle_url($parsed_patterns,$url);
+}
+function sm_get_url_fields($pat){
+    preg_match_all("/{([a-zA-Z\_]*)}/i",$pat,$regs);
+    return $regs[1];
+}
+function sm_compile_models($models,$namespace=""){
+    /**
+    $namespace=str_replace("/","\/",$namespace);
+    $namespace=str_replace("~","\~",$namespace);
+     */
+    foreach($models as $k=>$v){
+        if(is_array($v)&&!is_numeric($k)){
+            $pat=$k;$field_rules=$v;
+        }else{
+            $field_rules=array();$pat=$v;
+        }
+        $fields=sm_get_url_fields($pat);
+        foreach($fields as $field){
+            if(!isset($field_rules[$field]))
+                $field_rules[$field]="([^.^\/]+)";
+        }
+        $pat = $namespace.$pat;
+        $real_pattern=str_replace("/","\/",$pat);
+        $real_pattern=str_replace("{","(?<",$real_pattern);
+        foreach($field_rules as $f=>$rule){
+            $real_pattern=str_replace($f."}",$f.">".$rule.")",$real_pattern);
+        }
+        $real_pattern="/^".$real_pattern."/";
+
+        $list[]=array("rules"=>$field_rules,"pat"=>$pat,"real_pattern"=>$real_pattern,"fields"=>$fields);
+    }
+    return $list;
+}
+function sm_handle_url($patterns,$url){
+    foreach($patterns as $pat){
+        if(preg_match($pat["real_pattern"],$url,$regs)){
+            $current_pattern=$pat["real_pattern"];
+            $current_template=$pat["pat"];
+            foreach($pat["fields"] as $f){
+                $params[$f]=$regs[$f];
+            }
+            return array("current_pattern"=>$current_pattern,"current_template"=>$current_template,"params"=>$params);
+        }
+    }
+    return false;
+}
 $sm= new smObject();
 /**
  * @example 
  * 
- * @see sm_pagenav_default
- * @code
- * echo sm_pagenav_default(18332,20);
- * echo sm_pagenav_default(18244,25,"index.php?page={page}",array("key"=>1),"page",3,3);
- * echo sm_pagenav_default(18244,25,null,array("key"=>1),"page",3,3);
- * @endcode
  *
- * @see smObject
- * @code
- *	$sm=new smObject;
- *	//此时自动用memcache1的配置创建memcache对象.
- *	print $sm->cache_memcache1->get("site_config_name");
- *	print $sm->dbo_default;//自动连接数据库了,用的是sm_config["mysql"]["default"];
- * @endcode
- *
- * @see smSql
- * @code
- * smSql::update( "users", array( "id"=>"111", "name"=>"uxferwe'fdsf", "pass"=>"fdsfdsfu2323\\fsdfdsf/'fsdfsdf\""), "id=9999");
- * smSql::insert( "users", array( "id"=>"111", "name"=>"uxferwe'fdsf", "pass"=>"fdsfdsfu2323\\fsdfdsf/'fsdfsdf\""));
- * smSql::select( "users", "*", "id>9999", "id desc", "limit 100", "age");
- * @endcode
- * 
- * @see smForm
- * 表单处理部分:modify_info.php
- * @code
- * $userinfo=array("email"=>"xurenlu@gmail.com","age"=>20,"");
- * $f=new smForm("user",$userinfo);
- * echo $f->begin("saveuser.php");
- * echo $f->text_field("email");
- * echo $f->select("age",array(arra("19","19岁"),array(20,"20岁")));
- * echo $f->submit();
- * echo $f->end(); 
- * @endcode
- * 保存用户信息部分:saveuesr.php
- * @code 
- * @endcode
  */
