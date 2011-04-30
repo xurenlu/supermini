@@ -3,23 +3,19 @@
  *@file sm.php 主框架内容;
  * vim: set fdm=marker:
  *@author xurenlu <helloasp@hotmail.com>
- *@version 1.2.0
+ *@version 1.2.0 alpha
  *\b License:  \b MIT <http://en.wikipedia.org/wiki/MIT_License>
  <pre>
  *@last_modified 2010-09-27 17:44:37
  \b Homepage: http://www.162cm.com/ 
  \b Slide: http://codeany.com/slides.10.play.miniphpkuangjiasuperminijianjie.shtml
  </pre>
-
  \b 使用之前要理解并同意的几个关键点
-
- 1.Mysql是相当好用的，所以，这个框架只支持用mysql做数据库。没有设计一大堆的DBDriver;
+ 1.Mysql已经相当好用了，所以，这个框架只支持用mysql做数据库。没有设计一大堆的DBDriver;
  2.做cache,Memcache足够好用了，因此,内置的一些cache支持是基于memcache的;
  3.只用最好的，最必需的,精简精简再精简~
-
-     </pre>
-     * 
- */
+</pre>
+*/
 /**  smPhpEvent 	一些跟事件触发相关的全局函数. */
 global $SM_PE_EVENTS,$SM_PE_FILTERS,$sm_config,$sm_temp,$sm_data;
 $SM_PE_FILTERS=array();
@@ -27,7 +23,7 @@ $SM_PE_EVENTS=array();
 /**
  *	执行某一事件.
  * @param $event String 事件的名称
- *@param  $args MISC 要传递给事件的参数;
+ * @param  $args MISC 要传递给事件的参数;
  */
 function smDoEvent($event,$args=null){
     global $SM_PE_EVENTS;
@@ -115,7 +111,6 @@ function sm_pagenav_default($total,$pagesize=null,$pagestr=null,$get_args=null,$
         $arr=array();
         if(is_null($get_args))
             $get_args=$_GET;
-
         while(list($key,$val)=each($get_args)){
             if(!sm_test_urlencode($val))
                 $val=urlencode($val);
@@ -134,7 +129,6 @@ function sm_pagenav_default($total,$pagesize=null,$pagestr=null,$get_args=null,$
     $pagecount=$total/$pagesize;
     if(floor($pagecount)<$pagecount)
         $pagecount= floor($pagecount)+1;
-
     if(! ($_GET[$page_var_name]>0)){
         $_GET[$page_var_name]=1;
         $pagenow=1;
@@ -143,8 +137,7 @@ function sm_pagenav_default($total,$pagesize=null,$pagestr=null,$get_args=null,$
         $pagenow=$_GET[$page_var_name];
 
     $sn="page_".rand(1000,9999);
-    $str="<form  onsubmit='javascript:return false;'>";
-    //$str.=一共".$pagecount."页，".$total."个记录。当前为第".$pagenow."页。";
+    $str="<form  onsubmit='javascript:return false;'>"; //$str.=一共".$pagecount."页，".$total."个记录。当前为第".$pagenow."页。";
     if ($pagenow>1){
         $str=$str."<span><a href='".sm_gen_url(str_replace("{page}","1",$pagestr),str_replace("{page}",1,$url_pattern),$get_args)."'>首页</a></span>";
         $str =$str."<span> <a href='".sm_gen_url(str_replace("{page}",($pagenow-1),$pagestr),str_replace("{page}",($pagenow-1),$url_pattern),$get_args)."'>上一页</a></span>";
@@ -175,41 +168,6 @@ function sm_pagenav_default($total,$pagesize=null,$pagestr=null,$get_args=null,$
         }
     return $str;
 }
-/** class smCache 调用memcache 取缓存;*/
-class smCache { 
-    private $_group_id;
-    private $_servers;
-    private $_memcache;
-    private $_flag=0;
-    public $expire=7200;
-    /***   __construct */ 
-    public function __construct($group_id){
-        global $sm_config;
-        $this->_group_id=$group_id;
-        $this->_servers=$sm_config["memcache"][$group_id];
-        $mem=new memcache();
-        foreach($this->_servers as $server){
-            $mem->addServer($server["host"],$server["port"]);
-        }
-        $this->_memcache=$mem;
-    }
-    /** *  get 读缓存值 */
-    function get($key){
-        return $this->_memcache->get($key);
-    }
-    /***  set 设置缓存值;*/
-    function set($key,$val,$expire=7200){
-        return  $this->_memcache->set($key,$val,$this->_flag,$expire);
-    }
-    function delete($key){
-        return $this->_memcache->delete($key);
-    }
-    /***  set_flag */
-    function set_flag($flag){
-        $this->_flag = $flag;
-    }
-}
-
 /**  static class smSql  帮助构造SQL语句的小工具类; */
 class smSql{
     var $pagesize=20;
@@ -226,14 +184,11 @@ class smSql{
         if(is_array($array)){
             $sql = "UPDATE `".$table."` SET ";
             $comma = ""; 
-            foreach ($array AS $_key => $_val)
-            {
+            foreach ($array AS $_key => $_val){
                 $sql .= $comma."`".$_key."` = '".self::escape_string($_val)."'";
                 $comma = ", ";
             }
-
-            if ($condition)
-            {
+            if ($condition){
                 $sql .= " WHERE ".$condition;
             }
             $sql .= " LIMIT $limit";
@@ -320,7 +275,6 @@ function _sm_mysql($id){
     if(!is_resource($conn) || !$switch){
         throw new smException("Mysql error:Can't connect to hosts with : -h ".$config["host"]." -u ".$config["user"]." -p ".substr($config["password"],0,2)."*** ".$config["database"]);
     }
-
     if(!empty($sm_config["prepare_sql"])) sm_query($sm_config["prepare_sql"]."",$conn);
     return $conn;
 }
@@ -458,6 +412,39 @@ class smChainable {
         $this->set($name,$args[0]);
         return $this;
     }
+    function reset(){
+        $this->attrs=array();
+    }
+}
+/** class smCache 调用memcache 取缓存;*/
+class smCache extends smChainable { 
+    private $_servers;
+    private $_memcache;
+    /***   __construct */ 
+    function __construct($group_id){
+        global $sm_config;
+        $mem=new memcache();
+        foreach($sm_config["memcache"][$group_id] as $server){
+            $mem->addServer($server["host"],$server["port"]);
+        }
+		$this->expire(7200);
+		$this->flag(0);
+        $this->_memcache=$mem;
+    }
+    /** *  get 读缓存值 */
+    function get($key){
+        return $this->_memcache->get($key);
+    }
+    /***  set 设置缓存值;*/
+    function set($key,$val,$expire=7200){
+        return  $this->_memcache->set($key,$val,$this->attrs["flag"],$this->attrs["expire"]);
+    }
+    function delete($key){
+        return $this->_memcache->delete($key);
+    }
+	function __destruct(){
+		$this->_memcache->close();
+	}
 }
 /**
 * smDB::table("users")->cache("users.page.1")->rows();
@@ -465,7 +452,6 @@ class smChainable {
 class smDB extends smChainable {
     private $_rconn=null;
     private $_wconn=null;
-    private $_table=null;
     private $_pagesize=null;
     private $_page_var = "page";
     private $_extra_args = null;
@@ -493,32 +479,31 @@ class smDB extends smChainable {
     }
     function __construct(){
         global $sm_config;
-        $this->_extra_args=$_GET;
         $this->_pagesize=($sm_config["pagesize"]>0)?$sm_config["pagesize"]:20;
         $this->reset();
     }
-
     function rows($clear=true){
-        $sql=smSql::select($this->attrs["table"],$this->attrs["select"],$this->attrs["where"],$this->attrs["order_by"],$this->attrs["limit"],$this->attrs["group_by"],$this->attrs["join"],$this->attrs["on"]);
+	   if($this->attrs["cache_key"]&&($tmp=$sm->cache_group_1->get($this->attrs["cache_key"]))){
+			if(!empty($tmp))
+				return $tmp;
+		}
+		$sql=smSql::select($this->attrs["table"],$this->attrs["select"],$this->attrs["where"],$this->attrs["order_by"],$this->attrs["limit"],$this->attrs["group_by"],$this->attrs["join"],$this->attrs["on"]);
         $rows=sm_fetch_rows($sql,$this->_rconn);
+		if($this->attrs["cache_key"])
+			$sm->cache_group_1->set($this->attrs["cache_key"],$rows);
         if($clear)
             $this->reset();
         return $rows; 
     }
-	function cachedrows($key,$clear=ture)
-	{
-		global $sm,$sm_config;
-        $temp=unserialize($sm->cache_group_1->get($key));
-        if(!empty($temp)){
-            return $temp;
-        }
-        $temp=$this->rows();
-        $sm->cache_group_1->set("$key",serialize($temp));
-		return $temp;
-	}
     function row($clear=true){
+	   if($this->attrs["cache_key"]&&($tmp=$sm->cache_group_1->get($this->attrs["cache_key"]))){
+			if(!empty($tmp))
+				return $tmp;
+		}
         $sql=smSql::select($this->attrs["table"],$this->attrs["select"],$this->attrs["where"],$this->attrs["order_by"],$this->attrs["limit"],$this->attrs["group_by"],$this->attrs["join"],$this->attrs["on"]);
         $row=sm_fetch_row($sql,$this->_rconn);
+		if($this->attrs["cache_key"])
+			$sm->cache_group_1->set($this->attrs["cache_key"],$row);
         if($clear)
             $this->reset();
         return $row; 
@@ -597,49 +582,37 @@ function sm_parse_template($tplfile, $objfile) {
     }
     $template = fread($fp, filesize($tplfile));
     fclose($fp);
-
     $var_regexp = "((\\\$[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*)(\[[a-zA-Z0-9_\-\.\"\'\[\]\$\x7f-\xff]+\])*)";
     $const_regexp = "([a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*)";
-
     $template = preg_replace("/([\n\r]+)\t+/s", "\\1", $template);
     $template = preg_replace("/\<\!\-\-\{(.+?)\}\-\-\>/s", "{\\1}", $template);
-
     $template = str_replace("{LF}", "<?=\"\\n\"?>", $template);
-
     $template = preg_replace("/\{(\\\$[a-zA-Z0-9_\[\]\'\"\$\.\x7f-\xff]+)\}/s", "<?=\\1?>", $template);
     $template = preg_replace("/$var_regexp/es", "sm_addquote('<?=\\1?>')", $template);
     $template = preg_replace("/\<\?\=\<\?\=$var_regexp\?\>\?\>/es", "sm_addquote('<?=\\1?>')", $template);
-
     $template = preg_replace("/\{url\s+(.+?)\}/ies", "url('\\1')", $template);
-
     $template = preg_replace("/[\n\r\t]*\{template\s+([a-z0-9_]+)\}[\n\r\t]*/is", "\n<? include sm_template('\\1'); ?>\n", $template);
     $template = preg_replace("/[\n\r\t]*\{template\s+(.+?)\}[\n\r\t]*/is", "\n<? include sm_template(\\1); ?>\n", $template);
     $template = preg_replace("/[\n\r\t]*\{eval\s+(.+?)\}[\n\r\t]*/ies", "sm_stripvtags('<? \\1 ?>','')", $template);
     $template = preg_replace("/[\n\r\t]*\{echo\s+(.+?)\}[\n\r\t]*/ies", "sm_stripvtags('\n<? echo \\1; ?>\n','')", $template);
     $template = preg_replace("/[\n\r\t]*\{elseif\s+(.+?)\}[\n\r\t]*/ies", "sm_stripvtags('<? } elseif(\\1) { ?>','')", $template);
     $template = preg_replace("/[\n\r\t]*\{else\}[\n\r\t]*/is", "<? } else { ?>", $template);
-
     for($i = 0; $i < $nest; $i++) {
         $template = preg_replace("/[\n\r\t]*\{loop\s+(\S+)\s+(\S+)\}[\n\r]*(.+?)[\n\r]*\{\/loop\}[\n\r\t]*/ies", "sm_stripvtags('\n<? if(is_array(\\1)) { foreach(\\1 as \\2) { ?>','\n\\3\n<? } } ?>\n')", $template);
         $template = preg_replace("/[\n\r\t]*\{loop\s+(\S+)\s+(\S+)\s+(\S+)\}[\n\r\t]*(.+?)[\n\r\t]*\{\/loop\}[\n\r\t]*/ies", "sm_stripvtags('\n<? if(is_array(\\1)) { foreach(\\1 as \\2 => \\3) { ?>','\n\\4\n<? } } ?>\n')", $template);
         $template = preg_replace("/[\n\r\t]*\{if\s+(.+?)\}[\n\r]*(.+?)[\n\r]*\{\/if\}[\n\r\t]*/ies", "sm_stripvtags('<? if(\\1) { ?>','\\2<? } ?>')", $template);
     }
-
     $template = preg_replace("/\{$const_regexp\}/s", "<?=\\1?>", $template);
     $template = preg_replace("/ \?\>[\n\r]*\<\? /s", " ", $template);
-
     if(!$fp = fopen($objfile, 'w')) {
         throw new smException ("$objfile not found or have no access!");
     }
-
     $template = preg_replace("/\"(http)?[\w\.\/:]+\?[^\"]+?&[^\"]+?\"/e", "sm_transamp('\\0')", $template);
     $template = preg_replace("/\<script[^\>]*?src=\"(.+?)\".*?\>\s*\<\/script\>/ise", "sm_stripscriptamp('\\1')", $template);
-
     flock($fp, 2);
     fwrite($fp, $template);
     fclose($fp);
 }
-
 function sm_transamp($str) {
     $str = str_replace('&', '&amp;', $str);
     $str = str_replace('&amp;amp;', '&amp;', $str);
@@ -670,7 +643,6 @@ class smApplication{
     public $_last_action="index";
     public $before_filters=array();
     public $after_filters=array();
-
     function __construct($name="smapplication"){
         global $sm_config;
         $this->_name=$name;
@@ -683,7 +655,6 @@ class smApplication{
     }
     /***   _before_filter */ 
     function _before_filter($action){
-
         $var_name = "before_filters_$action";
         foreach($this->$var_name as $method){
             $this->$method();
@@ -694,7 +665,6 @@ class smApplication{
     }
     /***  _after_filter      */ 
     function _after_filter($action){
-
         $var_name = "after_filters_$action";
         foreach($this->$var_name as $method){
             $this->$method();
@@ -738,8 +708,7 @@ class smApplication{
                 $this->_app->_after_filter($action);
                 return true;
             }
-        /* 如果views 文件也不存在,那就调用method_missing方法; */
-        $this->_app->_method_missing($action);
+        $this->_app->_method_missing($action); // 调用method_missing方法; 
         return false;
     }
     public function yield(){
@@ -759,13 +728,10 @@ class smApplication{
 }
 /**  class Form ,旨在减化生成表单的一些操作;**/
 class smForm extends smChainable{
-    private $_temp=array();
     private $_form_values=array();
     private $_form_name="";
     function reset(){
         $this->attrs=array();
-        $this->_form_name="";
-        $this->_form_values=array();
         return true;
     }
     function html($tag,$inner=""){
@@ -808,8 +774,6 @@ class smForm extends smChainable{
         $str.= ">";
         return $str;
     }
-    /** 关闭Form标签; 
-     */
     function closeform(){
         return "</form>";
     }
@@ -821,7 +785,6 @@ class smForm extends smChainable{
         $this->reset();
         return $html;
     }
-
     /** 输出一个textarea 标记;
      *
      * @param $field_name String 域名字;
@@ -934,9 +897,7 @@ function run_sm($controller=null,$action=null) {
         $sm_temp["action"]=empty($_GET["action"])?  "index":strtolower($_GET["action"]);
     else
         $sm_temp["action"]=$action;
-
     smDoEvent("before_run_sm",array("controller"=>$sm_temp["controller"],"action"=>$sm_temp["action"]));
-
     if(!class_exists($sm_temp["controller"]))
         include_once($sm_config["app_root"]."/app/".strtolower($sm_temp["controller"]).".php");
     $app=new $sm_temp["controller"]($sm_temp["controller"]);
@@ -952,23 +913,7 @@ function sm_urlmap($var, $direction=1) {
     return str_replace(array_keys($replaces), array_values($replaces), $var);
 }
 /**
- * 关于URL静态化的处理的例子
-@code
-$parse_models=
-    array(
-        "{controller}/{action}.{format}",
-        "{controller}/{action}/{id}-{cate}-{page}.{format}"=>
-        array(
-            "controller"=>"([^.^\/]*)",
-            "action"=>"([^.]*)"
-        ),
-        "{controller}/{action}/{id}.{format}"
-    );
-$url="hello/world/test/4-1-3.html";
-$parsed_patterns=(sm_compile_models($parse_models));
-$url="hello/world/test/4-1-3.html";
-print_r(sm_handle_url($parsed_patterns,$url));
-@endcode
+ * 打开URL静态化功能
  */
 function sm_open_shorturl(){
     global $sm_config;
@@ -984,10 +929,6 @@ function sm_get_url_fields($pat){
     return $regs[1];
 }
 function sm_compile_models($models,$namespace=""){
-    /**
-    $namespace=str_replace("/","\/",$namespace);
-    $namespace=str_replace("~","\~",$namespace);
-     */
     foreach($models as $k=>$v){
         if(is_array($v)&&!is_numeric($k)){
             $pat=$k;$field_rules=$v;
@@ -1025,8 +966,3 @@ function sm_handle_url($patterns,$url){
     return false;
 }
 $sm= new smObject();
-/**
- * @example 
- * 
- *
- */
