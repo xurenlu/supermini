@@ -3,77 +3,77 @@
  *@file sm.php 主框架内容;
  * vim: set fdm=marker:
  *@author xurenlu <helloasp@hotmail.com>
- *@version 1.0.1
+ *@version 1.2.0
  *\b License:  \b MIT <http://en.wikipedia.org/wiki/MIT_License>
  <pre>
  *@last_modified 2010-09-27 17:44:37
-  \b Homepage: http://www.162cm.com/ 
-  \b Slide: http://codeany.com/slides.10.play.miniphpkuangjiasuperminijianjie.shtml
-  </pre>
+ \b Homepage: http://www.162cm.com/ 
+ \b Slide: http://codeany.com/slides.10.play.miniphpkuangjiasuperminijianjie.shtml
+ </pre>
 
-  \b 使用之前要理解并同意的几个关键点
-  
-  1.Mysql是相当好用的，所以，这个框架只支持用mysql做数据库。没有设计一大堆的DBDriver;
-  2.做cache,Memcache足够好用了，因此,内置的一些cache支持是基于memcache的;
-  3.只用最好的，最必需的,精简精简再精简~
-</pre>
- * 
+ \b 使用之前要理解并同意的几个关键点
+
+ 1.Mysql是相当好用的，所以，这个框架只支持用mysql做数据库。没有设计一大堆的DBDriver;
+ 2.做cache,Memcache足够好用了，因此,内置的一些cache支持是基于memcache的;
+ 3.只用最好的，最必需的,精简精简再精简~
+     </pre>
+     * 
  */
 /**  smPhpEvent 	一些跟事件触发相关的全局函数. */
 global $SM_PE_EVENTS,$SM_PE_FILTERS,$sm_config,$sm_temp,$sm_data;
 $SM_PE_FILTERS=array();
 $SM_PE_EVENTS=array();
 /**
-*	执行某一事件.
-* @param $event String 事件的名称
-*@param  $args MISC 要传递给事件的参数;
-*/
+ *	执行某一事件.
+ * @param $event String 事件的名称
+ *@param  $args MISC 要传递给事件的参数;
+ */
 function smDoEvent($event,$args=null){
-	global $SM_PE_EVENTS;
-	if(is_array($SM_PE_EVENTS[$event]))
-	foreach($SM_PE_EVENTS[$event] as $handle)
-	{
-		if(function_exists($handle))
-		$handle($args);
-	}
+    global $SM_PE_EVENTS;
+    if(is_array($SM_PE_EVENTS[$event]))
+        foreach($SM_PE_EVENTS[$event] as $handle)
+        {
+            if(function_exists($handle))
+                $handle($args);
+        }
 }
 /**
-*	加入一个事件处理器
-*@name		smAddEvent
-*@param	$event	string	"event name"
-*@param	$handle	string	"event handle" must be an exists function name
-*@return nothing
-*/
+ *	加入一个事件处理器
+ *@name		smAddEvent
+ *@param	$event	string	"event name"
+ *@param	$handle	string	"event handle" must be an exists function name
+ *@return nothing
+ */
 function smAddEvent($event,$handle){
-	global $SM_PE_EVENTS;
-	$SM_PE_EVENTS[$event][]=$handle;
+    global $SM_PE_EVENTS;
+    $SM_PE_EVENTS[$event][]=$handle;
 }
 /**
-*	给数据加一个过滤器.
-*@name	smAddFilter
-*@param	$dataName	string	数据名
-*@param	$filterName	string 过滤器名
-*@return nothing
-*/
+ *	给数据加一个过滤器.
+ *@name	smAddFilter
+ *@param	$dataName	string	数据名
+ *@param	$filterName	string 过滤器名
+ *@return nothing
+ */
 function smAddFilter($dataName,$filterName){
-	global $SM_PE_FILTERS;
-	$SM_PE_FILTERS[$dataName][]=$filterName;
+    global $SM_PE_FILTERS;
+    $SM_PE_FILTERS[$dataName][]=$filterName;
 }
 /**
-*	给数据应用过滤器.
-*@name	smApplyEvent
-*@param	$data	string	数据
-*@param	$dataName	string	数据名
-*@return nothing
-*/
+ *	给数据应用过滤器.
+ *@name	smApplyEvent
+ *@param	$data	string	数据
+ *@param	$dataName	string	数据名
+ *@return nothing
+ */
 function  smApplyEvent(&$data,$dataName) {
-	global $SM_PE_FILTERS;
-	if(is_array($SM_PE_FILTERS[$dataName]))
-	foreach($SM_PE_FILTERS[$dataName] as $filter)
-	{
-		if(function_exists($filter))
-		$filter(  $data);
-	}
+    global $SM_PE_FILTERS;
+    if(is_array($SM_PE_FILTERS[$dataName]))
+        foreach($SM_PE_FILTERS[$dataName] as $filter)
+        {
+            if(function_exists($filter))
+                $filter(  $data);
+        }
 }
 /***   sm_gen_url 拼凑URL时用到;*/ 
 function sm_gen_url($string,$url_pattern,$get_args=array()){
@@ -186,117 +186,118 @@ class smCache {
         }
         $this->_memcache=$mem;
     }
-    /** *  get_data 读缓存值 */
-    function get_data($key){
+    /** *  get 读缓存值 */
+    function get($key){
         return $this->_memcache->get($key);
     }
     /***  set_data 设置缓存值;*/
-    function set_data($key,$val,$expire=7200){
+    function set($key,$val,$expire=7200){
         return  $this->_memcache->set($key,$val,$this->_flag,$expire);
-	}
-	function delete($key){
-		return $this->_memcache->delete($key);
-	}
+    }
+    function delete($key){
+        return $this->_memcache->delete($key);
+    }
     /***  set_flag */
     function set_flag($flag){
         $this->_flag = $flag;
-    }
-    function __get($name){
-        return $this->get_data($name);
-    }
-    function __set($name,$value){
-        return $this->set_data($name,$value,$this->expire);
     }
 }
 
 /**  static class smSql  帮助构造SQL语句的小工具类; */
 class smSql{
-	var $pagesize=20;
-	static function escape_string($v){
-		return mysql_escape_string($v);
+    var $pagesize=20;
+    static function escape_string($v){
+        return mysql_escape_string($v);
     }
-	/**  update  构造更新SQL
-	*@param  $table string 要更新的数据表名
-	*@param  $array array要更新的数据
-	*@param  $condition string更新条件
-	*@param $limit integer 更新的条数;
-	*/
-	static function update($table, $array, $condition,$limit=1){   
-		if(is_array($array)){
-			$sql = "UPDATE `".$table."` SET ";
-			$comma = ""; 
-			foreach ($array AS $_key => $_val)
-			{
-				$sql .= $comma."`".$_key."` = '".self::escape_string($_val)."'";
-				$comma = ", ";
-			}
+    /**  update  构造更新SQL
+     *@param  $table string 要更新的数据表名
+     *@param  $array array要更新的数据
+     *@param  $condition string更新条件
+     *@param $limit integer 更新的条数;
+     */
+    static function update($table, $array, $condition,$limit=1){   
+        if(is_array($array)){
+            $sql = "UPDATE `".$table."` SET ";
+            $comma = ""; 
+            foreach ($array AS $_key => $_val)
+            {
+                $sql .= $comma."`".$_key."` = '".self::escape_string($_val)."'";
+                $comma = ", ";
+            }
 
-			if ($condition)
-			{
-				$sql .= " WHERE ".$condition;
+            if ($condition)
+            {
+                $sql .= " WHERE ".$condition;
             }
             $sql .= " LIMIT $limit";
-			return $sql;
-		}
-		else{
-			return false;
-		}
+            return $sql;
+        }
+        else{
+            return false;
+        }
     }
-	/**  select 构造查询SQL
+    /**  select 构造查询SQL
      *
      * @param  $table string表名字
-	 * @param  $columns string 要查找的列，默认是"*"
-	 * @param  $conditions string ,默认是null,请给出sql语句 where子句where后面的部分
-	 * @param  $order string 
-	 * @param  $limit string
-	 * @param  $group string
-	 */
-	static function select($table,$columns="*",$conditions=null,$order=null,$limit=null,$group=null){
-		global $config;
-		if(is_array($columns))
-			$cols=join(",",$columns);
-		else
-			$cols=$columns;
-		$sql="	SELECT ".$columns." From ".$table;
-		if(!is_null($conditions))
-		    $sql.="	WHERE ".$conditions;
-		if(!is_null($group))
-		    $sql.="	GROUP BY ".$group;
-		if(!is_null($order))
-		    $sql.="	ORDER BY ".$order;
-		if(!is_null($limit))
-		    $sql.="	LIMIT ".$limit;
-		return $sql;
+     * @param  $columns string 要查找的列，默认是"*"
+     * @param  $conditions string ,默认是null,请给出sql语句 where子句where后面的部分
+     * @param  $order string 
+     * @param  $limit string
+     * @param  $group string
+     */
+    static function select($table,$columns="*",$conditions=null,$order=null,$limit=null,$group=null,$join=null,$on=null){
+        if($columns===NULL)
+            $columns="*";
+        if(is_array($columns))
+            $cols=join(",",$columns);
+        else
+            $cols=$columns;
+        $sql="	SELECT ".$columns." From ".$table;
+        if(!is_null($join)){
+            $sql.=" $join ";
+        }
+        if(!is_null($on)){
+            $sql.="on  $on";
+        }
+        if(!is_null($conditions))
+            $sql.="	WHERE ".$conditions;
+        if(!is_null($group))
+            $sql.="	GROUP BY ".$group;
+        if(!is_null($order))
+            $sql.="	ORDER BY ".$order;
+        if(!is_null($limit))
+            $sql.="	LIMIT ".$limit;
+        return $sql;
     } 
     /***   count 构造count类语句,注意构造出的是count(*) as c ;*/ 
-	static function count($table,$conditions=null,$order=null,$limit=null,$group=null){
-        return self::SELECT($table,"count(*) as c",$conditions,$order,$limit,$group); 
+    static function count($table,$conditions=null,$order=null,$limit=null,$group=null,$join=null,$on){
+        return self::SELECT($table,"count(*) as c",$conditions,$order,$limit,$group,$join,$on); 
     }
-	/**  insert 得到插入语句的SQL
-	*@param  $table string 数据表名字
-	*@param  $array array 要插入的一行数据
-	*@param $type 要么是INSERT要么是REPLACE,这决定生成的sql语句是insert into 还是replace into 
-	**/
-	static function insert($table,$array,$type="INSERT"){
-		if (is_array($array)){	
-			$comma = $key = $value = "";
-			foreach ($array AS $_key => $_val){	
-				$key .= $comma."`".$_key."` ";
-				$value .= $comma."'".self::escape_string($_val)."'";	
-				$comma = ", ";
-			}
-			$sql = "$type INTO ".$table.  "(".$key.") VALUES (".$value.")";
-			return $sql;
-		}
+    /**  insert 得到插入语句的SQL
+     *@param  $table string 数据表名字
+     *@param  $array array 要插入的一行数据
+     *@param $type 要么是INSERT要么是REPLACE,这决定生成的sql语句是insert into 还是replace into 
+     **/
+    static function insert($table,$array,$type="INSERT"){
+        if (is_array($array)){	
+            $comma = $key = $value = "";
+            foreach ($array AS $_key => $_val){	
+                $key .= $comma."`".$_key."` ";
+                $value .= $comma."'".self::escape_string($_val)."'";	
+                $comma = ", ";
+            }
+            $sql = "$type INTO ".$table.  "(".$key.") VALUES (".$value.")";
+            return $sql;
+        }
     }
-	/**  delete  得到删除语句的SQL
-	* @param  $table string 数据表名字
-	* @param  $condition string 条件
-	* @param  $limit string limit字段
-	*/
-	static function delete($table,$condition,$limit="1"){
-		$sql="DELETE FROM `".mysql_escape_string($table)."` WHERE ".$condition." LIMIT ".$limit;
-		return $sql;
+    /**  delete  得到删除语句的SQL
+     * @param  $table string 数据表名字
+     * @param  $condition string 条件
+     * @param  $limit string limit字段
+     */
+    static function delete($table,$condition,$limit="1"){
+        $sql="DELETE FROM `".mysql_escape_string($table)."` WHERE ".$condition." LIMIT ".$limit;
+        return $sql;
     }
 }
 /***   _sm_mysql  连接Mysql的实际函数 */ 
@@ -310,9 +311,9 @@ function _sm_mysql($id){
     $switch=mysql_select_db($config["database"],$conn);
     smDoEvent("select_db",$conn);
     if(!is_resource($conn) || !$switch){
-            throw new smException("Mysql error:Can't connect to hosts with : -h ".$config["host"]." -u ".$config["user"]." -p ".substr($config["password"],0,2)."*** ".$config["database"]);
+        throw new smException("Mysql error:Can't connect to hosts with : -h ".$config["host"]." -u ".$config["user"]." -p ".substr($config["password"],0,2)."*** ".$config["database"]);
     }
-	
+
     if(!empty($sm_config["prepare_sql"])) sm_query($sm_config["prepare_sql"]."",$conn);
     return $conn;
 }
@@ -365,10 +366,10 @@ function sm_fetch_rows($sql,$conn=null,$type=MYSQL_ASSOC){
     }
 }
 /**  smObject class
-* 实现一个比较灵活的功能,调用它的属性时，会自动地创建数据库，创建缓存对象等.
-**/
+ * 实现一个比较灵活的功能,调用它的属性时，会自动地创建数据库，创建缓存对象等.
+ **/
 class smObject {
-	/** 数据表的默认主键 */
+    /** 数据表的默认主键 */
     public $default_primary_key = "id";
     /**  存放回调钩子 */
     public $callbacks=array();
@@ -429,6 +430,89 @@ class smObject {
 /** class smException ,就是一个空类，继承了exception */
 class smException  extends Exception{}
 /**  class smTable,实现sql查询相关的一些功能; **/
+class smChain {
+    var $attrs=array();
+    function set($name,$value){
+        $this->attrs[$name]=$value;
+        return $this;
+    }
+    function __call($name,$args){
+        $this->set($name,$args[0]);
+        return $this;
+    }
+}
+class smDB extends smChain {
+    private $_rconn=null;
+    private $_wconn=null;
+    private $_table=null;
+    private $_pagesize=null;
+    private $_page_var = "page";
+    private $_extra_args = null;
+    function reset_temp(){
+        $this->attrs= array("where"=>null,"group"=>null,"order"=>null,"limit"=>null,"select"=>null);
+    }
+    /**
+     * 预备数据库连接;
+     * */
+    function prepare_dbo(){
+        if($this->_rconn && $this->_wconn){
+            return $this;
+        }
+        if(!$this->_rconn){ 
+            if($this->attrs["rconn"])
+                $this->_rconn=$this->attrs["rconn"];
+            else
+                $this->_rconn=sm_dbo(1);
+        }
+        if(!$this->_wconn){
+            if($this->attrs["wconn"])
+                $this->_wconn=$this->attrs["wconn"];
+            else
+                $this->_wconn=sm_dbo(0);
+        }
+        return $this;
+    }
+    function __construct(){
+        global $sm_config;
+        $this->_extra_args=$_GET;
+        $this->_pagesize=($sm_config["pagesize"]>0)?$sm_config["pagesize"]:20;
+        $this->reset_temp();
+    }
+
+    function rows($clear=true){
+        $sql=smSql::select($this->attrs["from"],$this->attrs["select"],$this->attrs["where"],$this->attrs["order_by"],$this->attrs["limit"],$this->attrs["group_by"],$this->attrs["join"],$this->attrs["on"]);
+        $rows=sm_fetch_rows($sql,$this->_rconn);
+        if($clear)
+            $this->reset_temp();
+        return $rows; 
+    }
+    function row($clear=true){
+        $sql=smSql::select($this->attrs["from"],$this->attrs["select"],$this->attrs["where"],$this->attrs["order_by"],$this->attrs["limit"],$this->attrs["group_by"],$this->attrs["join"],$this->attrs["on"]);
+        $rows=sm_fetch_row($sql,$this->_rconn);
+        if($clear)
+            $this->reset_temp();
+        return $row; 
+    }
+    function page(){
+        if(!($_GET[$this->_page_var]>0))
+            $pagenow=1;
+        else
+            $pagenow=$_GET[$this->_page_var];
+        $limit=($pagenow-1)*$this->_pagesize.",".$this->_pagesize;
+        $this->limit($limit);
+        $rows=$this->rows(false);
+        $total=$this->count(false);
+        $pagestr = sm_pagenav_default($total,$this->_pagesize,$this->_pagestr,$this->_extra_args,$this->_page_var,3,3);
+        $this->reset_temp();
+        return array("total"=>$total,"entries"=>$rows,"page"=>$pagestr);
+    }
+    function count(){
+        $sql=smSql::select($this->attrs["from"],"count(*) as c",$this->attrs["where"],$this->attrs["order_by"],"1",$this->attrs["group_by"],$this->attrs["join"],$this->attrs["on"]);
+        $row=sm_fetch_row($sql,$this->_rconn);
+        return $row["c"]; 
+    }
+
+}
 class smTable{
     private $_rconn=null;
     private $_wconn=null;
@@ -438,7 +522,7 @@ class smTable{
     private $_extra_args = null;
     private $_temp=array();
     function reset_temp(){
-    	$this->_temp = array("where"=>null,"group"=>null,"order"=>null,"limit"=>null,"select"=>"*");
+        $this->_temp = array("where"=>null,"group"=>null,"order"=>null,"limit"=>null,"select"=>"*");
     }
     function __construct($table,$primary_key="id",$rconn=null,$wconn=null){
         global $sm_config;
@@ -451,7 +535,7 @@ class smTable{
         $this->_wconn=$wconn;
         $this->_extra_args=$_GET;
         $this->_pagesize=($sm_config["pagesize"]>0)?$sm_config["pagesize"]:20;
-		$this->reset_temp();
+        $this->reset_temp();
     }
     /***  set variables */ 
     public function __set($varname,$value){
@@ -459,15 +543,15 @@ class smTable{
     }
     /** get last inserted id */
     public function insert_id(){
-       return mysql_insert_id($this->_wconn); 
+        return mysql_insert_id($this->_wconn); 
     }
     /***   get_select_conditions */ 
     function get_select_conditions($columns,$values){
-            $conditions=array();
-            foreach($columns as $k=>$v){
-                $conditions[]="`".$v."` = '".mysql_escape_string($values[$k])."'";
-            }
-            return $conditions; 
+        $conditions=array();
+        foreach($columns as $k=>$v){
+            $conditions[]="`".$v."` = '".mysql_escape_string($values[$k])."'";
+        }
+        return $conditions; 
     }
     function desc(){
         $rows=sm_fetch_rows("desc ".$this->_table);
@@ -475,46 +559,46 @@ class smTable{
     }
     public function cache_then_find_by($key,$conditions=null,$wanted="*",$order_by=null,$limit=null,$group_by=null){
         global $sm,$sm_config;
-        $temp=unserialize($sm->cache_group_1->$key);
+        $temp=unserialize($sm->cache_group_1->get($key));
         if(!empty($temp)){
             return $temp;
         }
         $temp=$this->find_by($conditions,$wanted,$order_by,$limit,$group_by);
-        $sm->cache_group_1->set_data("$key",serialize($temp));
+        $sm->cache_group_1->set("$key",serialize($temp));
         return $temp;
 
     }
     /***   find_by 根据指定的条件来查询*/ 
-    public function find_by($conditions=null,$wanted="*",$order_by=null,$limit=null,$group_by=null){
-        $sql=smSql::select($this->_table,$wanted,$conditions,$order_by,$limit,$group_by);
+    public function find_by($conditions=null,$wanted="*",$order_by=null,$limit=null,$group_by=null,$join=null,$on=null){
+        $sql=smSql::select($this->_table,$wanted,$conditions,$order_by,$limit,$group_by,$join,$on);
         $rows=sm_fetch_rows($sql,$this->_rconn);
         return $rows;
     }
-    public function cache_then_find_row_by($key,$conditions=null,$wanted="*",$order_by=null,$limit=1,$group_by=null){
+    public function cache_then_find_row_by($key,$conditions=null,$wanted="*",$order_by=null,$limit=1,$group_by=null,$join=null,$on=null){
         global $sm,$sm_config;
-        $temp=unserialize($sm->cache_group_1->$key);
+        $temp=unserialize($sm->cache_group_1->get($key));
         if(!empty($temp))
             return $temp;
         $temp=$this->find_row_by($conditions,$wanted,$order_by,$limit,$group_by);
-        $sm->cache_group_1->set_data("$key",serialize($temp));
+        $sm->cache_group_1->set("$key",serialize($temp));
         return $temp;
     }
     /***  find_row_by 根据条件列查找数据,直接调用find_by并返回第一条数据;*/ 
-    public function find_row_by($conditions=null,$wanted="*",$order_by=null,$limit=1,$group_by=null){
+    public function find_row_by($conditions=null,$wanted="*",$order_by=null,$limit=1,$group_by=null,$join=null,$on=null){
         return array_shift($this->find_by($conditions,$wanted,$order_by,$limit,$group_by));
     }
-    public function cache_then_page_by($conditions=null,$wanted="*",$order_by=null,$limit=null,$group_by=null){
+    public function cache_then_page_by($conditions=null,$wanted="*",$order_by=null,$limit=null,$group_by=null,$join=null,$on=null){
         global $sm,$sm_config;
-        $temp=unserialize($sm->cache_group_1->$key);
+        $temp=unserialize($sm->cache_group_1->get($key));
         if(!empty($temp))
             return $temp;
         $temp=$this->page_by($conditions,$wanted,$order_by,$limit,$group_by);
-        $sm->cache_group_1->set_data("$key",serialize($temp));
+        $sm->cache_group_1->set("$key",serialize($temp));
         return $temp;
     }
-    
+
     /***  page_by 根据条件查询数据,同时自带分页;*/ 
-    public function page_by($conditions=null,$wanted="*",$order_by=null,$limit=null,$group_by=null){
+    public function page_by($conditions=null,$wanted="*",$order_by=null,$limit=null,$group_by=null,$join=null,$on=null){
         if(! ($_GET[$this->_page_var]>0))
             $pagenow=1;
         else
@@ -526,61 +610,61 @@ class smTable{
         $total=$row["c"];
         $pagestr = sm_pagenav_default($total,$this->_pagesize,$this->_pagestr,$this->_extra_args,$this->_page_var,3,3);
         return array("total"=>$total,"entries"=>$rows,"page"=>$pagestr);
-     }
-     /***  update_by 根据条件更新数据;*/ 
-     public function update_by($conditions,$values,$limit=1){
-		$sql=smSql::update($this->_table,$values,$conditions,$limit);
+    }
+    /***  update_by 根据条件更新数据;*/ 
+    public function update_by($conditions,$values,$limit=1){
+        $sql=smSql::update($this->_table,$values,$conditions,$limit);
         return sm_query($sql,$this->_wconn); 
-     }
-     /***  delete_by */ 
-     public function delete_by($conditions,$limit=1){
-		    $sql=smSql::delete($this->_table,$conditions);
-		    return sm_query($sql,$this->_wconn);
-     }
-     /***   create */ 
-     public function create($row,$type="INSERT"){
-         $sql=smSql::insert($this->_table,$row,$type);
-         return sm_query($sql,$this->_wconn); 
-     }
-     public function __call($name,$args){
-     	if(in_array($name,array("where","group","order","limit","select"))){
-     		$this->_temp["$name"]=$args[0];
-     		return $this;
-     	}
-     	if($name=="data"){
-     		$this->_temp["data"]=$args[0];
-     	}
-     	if($name=="row"){
-     		$temp= $this->find_row_by($this->_temp["where"],$this->_temp["select"],$this->_temp["order"],$this->_temp["limit"],$this->_temp["group"]);
-     		$this->reset_temp();
-     		return $temp;
-     	}
-     	if($name=="rows"){
-     		$temp= $this->find_by($this->_temp["where"],$this->_temp["select"],$this->_temp["order"],$this->_temp["limit"],$this->_temp["group"]);
-     		$this->reset_temp();
-     		return $temp;
-     	}
-     	if($name=="page"){
-     		$temp= $this->page_by($this->_temp["where"],$this->_temp["select"],$this->_temp["order"],$this->_temp["limit"],$this->_temp["group"]);
-     		$this->reset_temp();
-     		return $temp;
-     	}
-     }
+    }
+    /***  delete_by */ 
+    public function delete_by($conditions,$limit=1){
+        $sql=smSql::delete($this->_table,$conditions);
+        return sm_query($sql,$this->_wconn);
+    }
+    /***   create */ 
+    public function create($row,$type="INSERT"){
+        $sql=smSql::insert($this->_table,$row,$type);
+        return sm_query($sql,$this->_wconn); 
+    }
+    public function __call($name,$args){
+        if(in_array($name,array("where","group","order","limit","select"))){
+            $this->_temp["$name"]=$args[0];
+            return $this;
+        }
+        if($name=="data"){
+            $this->_temp["data"]=$args[0];
+        }
+        if($name=="row"){
+            $temp= $this->find_row_by($this->_temp["where"],$this->_temp["select"],$this->_temp["order"],$this->_temp["limit"],$this->_temp["group"]);
+            $this->reset_temp();
+            return $temp;
+        }
+        if($name=="rows"){
+            $temp= $this->find_by($this->_temp["where"],$this->_temp["select"],$this->_temp["order"],$this->_temp["limit"],$this->_temp["group"]);
+            $this->reset_temp();
+            return $temp;
+        }
+        if($name=="page"){
+            $temp= $this->page_by($this->_temp["where"],$this->_temp["select"],$this->_temp["order"],$this->_temp["limit"],$this->_temp["group"]);
+            $this->reset_temp();
+            return $temp;
+        }
+    }
 }
 
 /**
-* @brief	smApplication Mvc 功能主要在这里实现
-* 
-* 这里只实现特别简单的MVC功能,一般建议用户将app目录设置为./app/,controller文件就旅行团在app/***.php里，
-* 而views层的文件则放在./app/views/{controller}/{action}.php里。
-*/
+ * @brief	smApplication Mvc 功能主要在这里实现
+ * 
+ * 这里只实现特别简单的MVC功能,一般建议用户将app目录设置为./app/,controller文件就旅行团在app/***.php里，
+ * 而views层的文件则放在./app/views/{controller}/{action}.php里。
+ */
 class smApplication{
     public $_app="smapplication";
     public $_name="smapplication";
     public $_last_action="index";
     public $before_filters=array();
     public $after_filters=array();
-    
+
     function __construct($name="smapplication"){
         global $sm_config;
         $this->_name=$name;
@@ -593,7 +677,7 @@ class smApplication{
     }
     /***   _before_filter */ 
     function _before_filter($action){
-		
+
         $var_name = "before_filters_$action";
         foreach($this->$var_name as $method){
             $this->$method();
@@ -602,9 +686,9 @@ class smApplication{
             $this->$method();
         }
     }
-     /***  _after_filter      */ 
+    /***  _after_filter      */ 
     function _after_filter($action){
-	
+
         $var_name = "after_filters_$action";
         foreach($this->$var_name as $method){
             $this->$method();
@@ -612,7 +696,7 @@ class smApplication{
         foreach($this->after_filters as $method){
             $this->$method();
         }
-     }
+    }
     /***   method_miss */ 
     private function _method_missing($method) {
         throw new smException("method  missing:".$this->_name."->".$method);
@@ -627,12 +711,12 @@ class smApplication{
         $mod=$this->_name;
         if($sm_config["use_layout"]){
             //如果使用布局并且布局文件存在...
-                if(!include($sm_config["app_root"]."/app/layouts/$mod.php") )
-                    return include($sm_config["app_root"]."/app/views/$mod/$action.php");
-                else return true;
+            if(!include($sm_config["app_root"]."/app/layouts/$mod.php") )
+                return include($sm_config["app_root"]."/app/views/$mod/$action.php");
+            else return true;
         }
         else{
-               return include($sm_config["app_root"]."/app/views/$mod/$action.php");
+            return include($sm_config["app_root"]."/app/views/$mod/$action.php");
         }
     }
     /***   dispatch run the filters and real action method;*/ 
@@ -641,13 +725,13 @@ class smApplication{
         $this->_last_action =$this->_app->_last_action= $action;
         $methods=get_class_methods($this->_app);
         if(
-        (in_array($action,$methods) && ($method=$action)) ||
-        ( in_array("action_".$action,$methods) &&($method="action_".$action))){
-            $this->_app->_before_filter($action);
-            $this->_app->$method();
-            $this->_app->_after_filter($action);
-            return true;
-        }
+            (in_array($action,$methods) && ($method=$action)) ||
+            ( in_array("action_".$action,$methods) &&($method="action_".$action))){
+                $this->_app->_before_filter($action);
+                $this->_app->$method();
+                $this->_app->_after_filter($action);
+                return true;
+            }
         /* 如果views 文件也不存在,那就调用method_missing方法; */
         $this->_app->_method_missing($action);
         return false;
@@ -664,71 +748,43 @@ class smApplication{
     }
     /***  __get magic method;*/
     public function __get($var){
-		return array();
+        return array();
     }
-}
-function sm_tag($tagname,$html_attrs=array(),$inner_html=""){
-    $str="<$tagname ";
-    if(is_array($html_attrs)){
-    foreach($html_attrs as $k=>$v){
-        $str.= "$k='".htmlspecialchars($v)."' ";
-    }
-    }
-    else{
-        $str .= $html_attrs;
-    }
-    if(!empty($inner_html))
-        $str .= ">".$inner_html."</$tagname>";
-    else
-        $str .= "/>";
-    return $str;
-}
-function sm_image_tag($src,$html_attrs=array()){
-    global $sm_config;
-	if(!preg_match("/http:/",$src))
-    	$src = $sm_config["image_path"]."$src";
-    if(is_array($html_attrs))
-        return sm_tag("img",array_merge($html_attrs,array("src"=>$src)));
-    else
-        return sm_tag("img",$html_attrs." src='".$src."'");
-}
-
-function sm_link_css($src){
-    global $sm_config;
-	if(!preg_match("/http:/",$src))
-    	$src = $sm_config["css_path"]."$src";
-	if(is_array($html_attrs)){
-		$html_attrs["rel"]="stylesheet";
-		$html_attrs["type"]="text/css";
-        return sm_tag("link",array_merge($html_attrs,array("href"=>$src)));
-	}
-    else{
-		$html_attrs .= 'rel="stylesheet" type="text/css"';
-        return sm_tag("link",$html_attrs." href='".$src."'");
-	}
 }
 /**  class Form ,旨在减化生成表单的一些操作;**/
-class smForm {
-    var $_values=array();
-    var $_name="";
-    /** 构造函数;
-	 *
-	 * @param $name String 一般设置为表的名字;
+class smForm extends smChain{
+    private $_temp=array();
+    private $_form_values=array();
+    private $_form_name="";
+    function html($tag,$inner=""){
+        $str="<$tag ";
+        foreach($this->attrs as $k=>$v){
+            if($v!==NULL)
+                $str .= "$k='".htmlspecialchars($v)."' "; 
+        }
+        $str .=">";
+        $this->clear();
+        return $str.$inner."</$tag>"; 
+    }
+    /** 设定form表单的名称和初始值;
+     *
+     * @param $name String 一般设置为表的名字;
      * @param $values Array 各个域的值;
-	 * 如果$arg是一维数组,则表示数据表中的一列数据;
+     * 如果$arg是一维数组,则表示数据表中的一列数据;
      * 如果$arg是对象,则视为smTable对象,暂未实现;
      * 如果$arg是字符串,则视为mysql数据表名字,暂未实现;
-     * */
-    function __construct($name,$values=null){
-        $this->_name=$name;
-        $this->_values=$values;
+     **/
+    function __construct($name="",$values=null){
+        $this->_form_name=$name;
+        $this->_form_values=$values;
+        return $this;
     }
-	/** Form表单的<form action=** method="***">部分
-	*
-	* @param $action String,Form表单的提交地址。
-	* @param $html_attrs Array,Form表单附加的其他属性;
-	*/
-    function begin($action,$html_attrs=array("method"=>"POST")){
+    /** Form表单的<form action=** method="***">部分
+     *
+     * @param $action String,Form表单的提交地址。
+     * @param $html_attrs Array,Form表单附加的其他属性;
+     */
+    function openform($action,$html_attrs=array("method"=>"POST")){
         $str="<form  action='$action' ";
         foreach($html_attrs as $k=>$v){
             $str.=" $k='".$v."' ";
@@ -736,109 +792,111 @@ class smForm {
         $str.= ">";
         return $str;
     }
-	/** 关闭Form标签; 
-	*/
-    function end(){
+    /** 关闭Form标签; 
+     */
+    function closeform(){
         return "</form>";
     }
-
-    function caption($field_name,$html_attrs=array(),$caption=""){
-        $html_attrs["for"]=$this->_name."_".$field_name;
-        return $this->label("$field_name",$html_attrs,$caption);
+    function caption($field_name,$caption=null,$html_attrs=array()){
+        if($caption===NULL)
+            $caption=$field_name.":";
+        $this->set("form", $this->_form_name."_".$field_name);
+        return $this->build("label","$field_name",$caption);
     }
 
-	/** 输出一个textarea 标记;
-	*
-	* @param $field_name String 域名字;
-	* @param $html_attrs Array HTML属性;
-	*/
-function text_area($field_name,$html_attrs=array()){
-		$value=$this->_get_value($field_name,$html_attrs);
-        $html= $this->_left("textarea",$field_name,$html_attrs);
+    /** 输出一个textarea 标记;
+     *
+     * @param $field_name String 域名字;
+     * @param $html_attrs Array HTML属性;
+     */
+    function textarea($field_name){
+        $value=$this->_get_value($field_name,$this->attrs);
+        $html= $this->_left("textarea",$field_name);
         $html.=">".htmlspecialchars($value)."</textarea>";
+        $this->clear();
         return $html;
     }
-	/** 输出一个文本输入框 */
-    function text_field($field_name,$html_attrs=array()){
-        $value=$this->_get_value($field_name,$html_attrs);
-		if(empty($html_attrs["type"]))
-        	$html_attrs["type"]="text";
+    /** 输出一个文本输入框 */
+    function textbox($field_name){
+        $value=$this->_get_value($field_name,$this->attrs);
+        if(empty($html_attrs["type"]))
+            $html_attrs["type"]="text";
         $html_attrs["value"]=$value;
-        return $this->input($field_name,$html_attrs);
+        return $this->build("input",$field_name);//wait 
     }
-	/** 属出一个checkbox */
-    function check_box($field_name,$html_attrs=array("type"=>"check_box")){
-        if(!isset($html_attrs["value"]))
+    /** 属出一个checkbox */
+    function checkbox($field_name){
+        if(!isset($this->attrs["value"]))
             throw new smException("check_box must specific a value");
-		$html_attrs["type"]="check_box";
+        $this->set("type","check_box");
         $checked_value=$this->_get_value($field_name,array());
         if($checked_value==$html_attrs["value"])
             $html_attrs["checked"]="checked";
-        return $this->input($field_name,$html_attrs);
+        return $this->build("input",$field_name);
     }
-	/** 输出一个提交按钮 */
+    /** 输出一个提交按钮 */
     function submit($value="提交",$html_attrs=array()){
         $html_attrs["type"]="submit";
-        return $this->button("",$html_attrs,$value);
+        return $this->build("button","",$value);//wait
     }
-	/** 输出一个SELECT下拉框
-	* @param $field_name String,字段域名字
-	* @param $values Array,一个二维数组;比如:array(array("1","属性1"),array("2","属性2"),array(3,"属性3"))
-	* @param $html_attrs Array HTML属性集
-	*/
-    function select($field_name,$values,$html_attrs=array()){
-        $value=$this->_get_value($field_name,$html_attrs);
-        $select_html = $this->_left("select",$field_name,$html_attrs);
+    /** 输出一个SELECT下拉框
+     * @param $field_name String,字段域名字
+     * @param $values Array,一个二维数组;比如:array(array("1","属性1"),array("2","属性2"),array(3,"属性3"))
+     * @param $html_attrs Array HTML属性集
+     */
+    function selectbox($field_name,$values){
+        $value=$this->_get_value($field_name,$this->attrs);
+        $select_html = $this->_left("select",$field_name);
         $strs=array();
         foreach($values as $v){
             if(sizeof($v)!=2) throw new smException("you assign a bad value for select ,file:".__FILE__.",line:".__LINE__);
             if(!empty($value) && $v[0]==$value ){
-                $temp=$strs[]=$this->option("",array("value"=>$v[0],"selected"=>"selected"),$v[1]);
+                $temp=$strs[]=$this->build("option","",$v[1],array("value"=>$v[0],"selected"=>"selected"));
             }else{
-                $strs[]=$this->option("",array("value"=>$v[0]),$v[1]);
+                $strs[]=$this->build("option","",$v[1],array("value"=>$v[0]));
             }
         }
         return "$select_html>".join("",$strs)."</select>";
     }
-	/** smForm类未明确给出的形形色色的其他各种HTML标记 
-	*
-	* @param $name String HTML tag 的种类，可以是img,marquee,fieldset,iframe等等;
-	* @param $args Array,一个有三个项的数组,第一个项是数据域名字,第二个是HTML属性,第三个是包含在标记里的innerhtml。
-	*/
-    function __call($name,$args){
-        $tag_name = $name;
-        $field_name= array_shift($args);
-        $html_attrs=array_shift($args);
-        $inner_html=array_shift($args);
+    /** smForm类未明确给出的形形色色的其他各种HTML标记 
+     *
+     * @param $name String HTML tag 的种类，可以是img,marquee,fieldset,iframe等等;
+     * @param $args Array,一个有三个项的数组,第一个项是数据域名字,第二个是HTML属性,第三个是包含在标记里的innerhtml。
+     */
+    function build($tag_name,$field_name,$inner_html,$html_attrs=NULL){
         $left_htmls = $this->_left($tag_name,$field_name,$html_attrs);
         $str.=$left_htmls.">".$inner_html."</$tag_name>";
         return $str;
     }
     function _get_value($field_name,$html_attrs){
-        if(!empty($this->_values)){
-            $value=$this->_values[$field_name];
+        if(!empty($this->_form_values)){
+            $value=$this->_form_values[$field_name];
         }
         if(!empty($html_attrs["value"]))
             $value=$html_attrs["value"];
         return $value;
     }
-    function _left($tag_name,$field_name,$html_attrs){
+    function _left($tag_name,$field_name,$html_attrs=null){
         if($field_name){
-            $str="<".$tag_name." id='".$this->_name."_".$field_name."' name='".$this->_name."[".$field_name."]' ";
+            $str="<".$tag_name." id='".$this->_form_name."_".$field_name."' name='".$this->_form_name."[".$field_name."]' ";
         }
         else{
             $str="<".$tag_name." ";
         }
+        if($html_attrs===NULL)
+            $html_attrs=$this->attrs;
         foreach($html_attrs as $k=>$v){
-            $str .=$k."=\"".$v."\" ";
+            if($v!==NULL)
+                $str .=$k."=\"".htmlspecialchars($v)."\" ";
         }
         return $str;
     }
+
 }
 /**   run_sm 跑MVC流程 
-* @param $controller controller名字;
-* @param $action action名字;
-*/ 
+ * @param $controller controller名字;
+ * @param $action action名字;
+ */ 
 function run_sm($controller=null,$action=null) {
     global $sm_temp,$sm_config;
     if(is_null($controller)) 
@@ -860,44 +918,44 @@ function run_sm($controller=null,$action=null) {
 $sm= new smObject();
 
 /**
-* @example 
-* 
-* @see sm_pagenav_default
-* @code
-* echo sm_pagenav_default(18332,20);
-* echo sm_pagenav_default(18244,25,"index.php?page={page}",array("key"=>1),"page",3,3);
-* echo sm_pagenav_default(18244,25,null,array("key"=>1),"page",3,3);
-* @endcode
-*
-* @see smObject
-* @code
-*	$sm=new smObject;
-*	//此时自动用memcache1的配置创建memcache对象.
-*	print $sm->cache_memcache1->get_data("site_config_name");
-*	print $sm->dbo_default;//自动连接数据库了,用的是sm_config["mysql"]["default"];
-* @endcode
-*
-* @see smSql
-* @code
-* smSql::update( "users", array( "id"=>"111", "name"=>"uxferwe'fdsf", "pass"=>"fdsfdsfu2323\\fsdfdsf/'fsdfsdf\""), "id=9999");
-* smSql::insert( "users", array( "id"=>"111", "name"=>"uxferwe'fdsf", "pass"=>"fdsfdsfu2323\\fsdfdsf/'fsdfsdf\""));
-* smSql::select( "users", "*", "id>9999", "id desc", "limit 100", "age");
-* @endcode
-* 
-* @see smForm
-* 表单处理部分:modify_info.php
-* @code
-* $userinfo=array("email"=>"xurenlu@gmail.com","age"=>20,"");
-* $f=new smForm("user",$userinfo);
-* echo $f->begin("saveuser.php");
-* echo $f->text_field("email");
-* echo $f->select("age",array(arra("19","19岁"),array(20,"20岁")));
-* echo $f->submit();
-* echo $f->end(); 
-* @endcode
-* 保存用户信息部分:saveuesr.php
-* @code 
-* $user=new smTable("users");
-* $user->update_by("id=12",$_POST["user"]);
-* @endcode
-*/
+ * @example 
+ * 
+ * @see sm_pagenav_default
+ * @code
+ * echo sm_pagenav_default(18332,20);
+ * echo sm_pagenav_default(18244,25,"index.php?page={page}",array("key"=>1),"page",3,3);
+ * echo sm_pagenav_default(18244,25,null,array("key"=>1),"page",3,3);
+ * @endcode
+ *
+ * @see smObject
+ * @code
+ *	$sm=new smObject;
+ *	//此时自动用memcache1的配置创建memcache对象.
+ *	print $sm->cache_memcache1->get("site_config_name");
+ *	print $sm->dbo_default;//自动连接数据库了,用的是sm_config["mysql"]["default"];
+ * @endcode
+ *
+ * @see smSql
+ * @code
+ * smSql::update( "users", array( "id"=>"111", "name"=>"uxferwe'fdsf", "pass"=>"fdsfdsfu2323\\fsdfdsf/'fsdfsdf\""), "id=9999");
+ * smSql::insert( "users", array( "id"=>"111", "name"=>"uxferwe'fdsf", "pass"=>"fdsfdsfu2323\\fsdfdsf/'fsdfsdf\""));
+ * smSql::select( "users", "*", "id>9999", "id desc", "limit 100", "age");
+ * @endcode
+ * 
+ * @see smForm
+ * 表单处理部分:modify_info.php
+ * @code
+ * $userinfo=array("email"=>"xurenlu@gmail.com","age"=>20,"");
+ * $f=new smForm("user",$userinfo);
+ * echo $f->begin("saveuser.php");
+ * echo $f->text_field("email");
+ * echo $f->select("age",array(arra("19","19岁"),array(20,"20岁")));
+ * echo $f->submit();
+ * echo $f->end(); 
+ * @endcode
+ * 保存用户信息部分:saveuesr.php
+ * @code 
+ * $user=new smTable("users");
+ * $user->update_by("id=12",$_POST["user"]);
+ * @endcode
+ */
