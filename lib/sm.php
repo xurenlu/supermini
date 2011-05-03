@@ -3,7 +3,7 @@
  *@file sm.php 主框架内容;
  * vim: set fdm=marker:
  *@author xurenlu <helloasp@hotmail.com>
- *@version 1.2.0 alpha
+ *@version 1.2.0 
  *\b License:  \b MIT <http://en.wikipedia.org/wiki/MIT_License>
  <pre>
  *@last_modified 2010-09-27 17:44:37
@@ -73,7 +73,11 @@ function  smApplyEvent(&$data,$dataName) {
         }
 }
 /***   sm_gen_url 拼凑URL时用到;*/ 
-function sm_gen_url($string,$url_pattern,$get_args=array()){
+function sm_gen_url($string,$url_pattern=null,$get_args=array()){
+	global $sm_temp;
+	if($url_pattern === NULL){
+		$url_pattern = $sm_temp["url_pattern"];
+	}
     $targetURL=$url_pattern;
     foreach($get_args as $k=>$v){
         $targetURL=str_replace("{".$k."}",$v,$targetURL);
@@ -82,6 +86,33 @@ function sm_gen_url($string,$url_pattern,$get_args=array()){
         return  $targetURL;
     else 
         return $string;
+}
+function sm_url($args,$string=""){
+    global $sm_temp;
+    if(!isset($args["controller"]))
+        $args["controller"]=$sm_temp["controller"];
+    if(!isset($args["action"]))
+        $args["action"]=$sm_temp["action"];
+
+    $keys=array_keys($args);
+    sort($keys);
+    foreach($sm_temp["compiled_url_routes"] as $k=>$v){
+        sort($v["fields"]);
+        if($keys==$v["fields"]){
+            $pattern=$v["pat"];
+            break;
+        }
+    }
+    if(!isset($pattern)){
+        return $string;
+    }
+    else{
+        $string = $pattern;
+	    foreach($args as $k=>$v){
+	        $string=str_replace("{".$k."}",$v,$string);
+	    }	
+		return $string;
+	}
 }
 /**  sm_test_urlencode * 探测一个变量是否已经被urlencode过了。 */
 function sm_test_urlencode($var){
@@ -96,7 +127,6 @@ function sm_test_urlencode($var){
  * @param string $page_var_name 一般是page
  * @param int $l 	当前页链接的左边保留多少个链接
  * @param int $r 	当前页链接的右边保留多少个链接
- * @param int $jump 是否加跳转表单。但是当前只有一页时，不显示此跳转表单。
  *
  * @code
  * echo sm_pagenav_default(18332,20);
@@ -104,7 +134,7 @@ function sm_test_urlencode($var){
  * echo sm_pagenav_default(18244,25,null,array("key"=>1),"page",3,3);
  * @endcode
  */
-function sm_pagenav_default($total,$pagesize=null,$pagestr=null,$get_args=null,$page_var_name="page",$l=4,$r=4,$jump=false){
+function sm_pagenav_default($total,$pagesize=null,$pagestr=null,$get_args=null,$page_var_name="page",$l=4,$r=4){
     global $sm_temp;
     $url_pattern=$sm_temp["url_pattern"];
     if(is_null($pagestr)){
@@ -137,12 +167,13 @@ function sm_pagenav_default($total,$pagesize=null,$pagestr=null,$get_args=null,$
         $pagenow=$_GET[$page_var_name];
 
     $sn="page_".rand(1000,9999);
-    $str="<form  onsubmit='javascript:return false;'>"; //$str.=一共".$pagecount."页，".$total."个记录。当前为第".$pagenow."页。";
     if ($pagenow>1){
-        $str=$str."<span><a href='".sm_gen_url(str_replace("{page}","1",$pagestr),str_replace("{page}",1,$url_pattern),$get_args)."'>首页</a></span>";
-        $str =$str."<span> <a href='".sm_gen_url(str_replace("{page}",($pagenow-1),$pagestr),str_replace("{page}",($pagenow-1),$url_pattern),$get_args)."'>上一页</a></span>";
+        $get_args[$page_var_name]=1;
+        $str=$str."<span class='pagenum'><a href='".sm_url($get_args)."'>首页</a></span>";
+        $get_args[$page_var_name]=$pagenow-1;
+        $str =$str."<span class='pagenum'> <a href='".sm_url($get_args)."'>上一页</a></span>";
     }else{
-        $str=$str."<span>首页</span><span>&lt;&lt;上一页</span>";
+        $str=$str."<span class='pagenum'>首页</span><span class='pagenum'>&lt;&lt;上一页</span>";
     }
     $startpage=$pagenow-$l;
     $endpage=$pagenow+$r;
@@ -150,22 +181,20 @@ function sm_pagenav_default($total,$pagesize=null,$pagestr=null,$get_args=null,$
     if($endpage>=$pagecount) $endpage=$pagecount;
     for($jj=$startpage;$jj<=$endpage;$jj++){
         if($jj==$pagenow)
-            $str=$str."<span class='cur'>".$jj."</span>";
-        else
-            $str=$str."<span ><a href='".sm_gen_url(str_replace("{page}",$jj,$pagestr),str_replace("{page}",$jj,$url_pattern),$get_args)."'>".$jj."</a></span>";
+            $str=$str."<span class='currrent pagenum'>".$jj."</span>";
+        else{
+            $get_args[$page_var_name]=$jj;
+            $str=$str."<span class='pagenum'><a href='".sm_url($get_args)."'>".$jj."</a></span>";
+        }
     }
     if($pagenow<$pagecount){
-        $str=$str."<span><a href='".sm_gen_url(str_replace("{page}",$pagenow+1,$pagestr),str_replace("{page}",$pagenow+1,$url_pattern),$get_args)."'>下一页</a></span>";
-        $str=$str."<span><a href='".sm_gen_url(str_replace("{page}",$pagecount,$pagestr),str_replace("{page}",$pagecount,$url_pattern),$get_args)."'>末页</a></span>";
+        $get_args[$page_var_name]=$pagenow+1;
+        $str=$str."<span class='pagenum'><a href='".sm_url($get_args)."'>下一页</a></span>";
+        $get_args[$page_var_name]=$pagecount;
+        $str=$str."<span class='pagenum'><a href='".sm_url($get_args)."'>末页</a></span>";
     }else{
-        $str=$str."<span>下一页</span><span>&gt;&gt;尾页</span>";
+        $str=$str."<span class='pagenum'>下一页</span><span class='pagenum'>&gt;&gt;尾页</span>";
     }
-    if($pagecount>1)
-        if($jump){
-            $str=$str."跳到<input type=\"text\" name=\"txtpage\" id='input_".$sn."' size=\"3\" class=\"tinput\" / >页";
-            $str=$str."<input type=\"button\" value=\"GO\" class=\"tinput\"
-                onclick=\"javascript:if((document.getElementById('input_".$sn."').value>=1) &&(document.getElementById('input_".$sn."').value<=".$pagecount.") &&(document.getElementById('input_".$sn."').value!=".$pagenow.")) window.location='".sm_gen_url($pagestr,$url_pattern,$get_args)."'.replace('{page}',document.getElementById('input_".$sn."').value);\"/></form>";
-        }
     return $str;
 }
 /**  static class smSql  帮助构造SQL语句的小工具类; */
@@ -486,8 +515,8 @@ class smDB extends smChainable {
 	   if($this->attrs["cache_key"]&&($tmp=$sm->cache_group_1->get($this->attrs["cache_key"]))){
 			if(!empty($tmp))
 				return $tmp;
-		}
-		$sql=smSql::select($this->attrs["table"],$this->attrs["select"],$this->attrs["where"],$this->attrs["order_by"],$this->attrs["limit"],$this->attrs["group_by"],$this->attrs["join"],$this->attrs["on"]);
+       }
+	   $sql=smSql::select($this->attrs["table"],$this->attrs["select"],$this->attrs["where"],$this->attrs["order_by"],$this->attrs["limit"],$this->attrs["group_by"],$this->attrs["join"],$this->attrs["on"]);
         $rows=sm_fetch_rows($sql,$this->_rconn);
 		if($this->attrs["cache_key"])
 			$sm->cache_group_1->set($this->attrs["cache_key"],$rows);
@@ -541,17 +570,23 @@ class smDB extends smChainable {
     }
 	/***  update_by 根据条件更新数据;*/ 
     function update($clear=true){
-        $sql=smSql::update($this->attrs["table"],$this->attrs["values"],$this->attrs["limit"]);
+        if(!$this->attrs["limit"])
+            $this->set("limit",1);
+        $sql=smSql::update($this->attrs["table"],$this->attrs["values"],$this->attrs["where"],$this->attrs["limit"]);
 		if($clear)
 	    	$this->reset();	
         return sm_query($sql,$this->_wconn); 
     }
- 	/***  delete_by */ 
     function delete($clear=true){
-        $sql=smSql::delete($this->attrs["table"],$this->attrs["where"]);
+        if(!$this->attrs["limit"])
+            $this->set("limit",1);
+        $sql=smSql::delete($this->attrs["table"],$this->attrs["where"],$this->attrs["limit"]);
 		  if($clear)
 	            $this->reset();
         return sm_query($sql,$this->_wconn);
+    }
+    function remove($clear=true){
+        return $this->delete($clear);
     }
 	function insert($type="INSERT",$clear=true){
 		$sql=smSql::insert($this->attrs["table"],$this->attrs["values"],$type);
@@ -568,8 +603,8 @@ class smDB extends smChainable {
 }
 function sm_template($file) {
     global $sm_config;
-    $tplfile = $sm_config["app_root"]. '/view/' .  $file . '.html';
-    $objfile = $sm_config["app_root"]. '/data/compiled/' .$file . '.tpl.php';
+    $tplfile = $file ;
+    $objfile = $sm_config["app_root"]. '/data/compiled/' .str_replace("/","_",$file) . '.tpl.php';
     if (!file_exists($objfile) || (filemtime($tplfile) > filemtime($objfile))) {
         sm_parse_template($tplfile, $objfile);
     }
@@ -577,38 +612,49 @@ function sm_template($file) {
 }
 function sm_parse_template($tplfile, $objfile) {
     $nest = 5;
-    if(!$fp = fopen($tplfile, 'r')) {
+
+    if(!@$fp = fopen($tplfile, 'r')) {
         exit("Current template file '$tplfile' not found or have no access!");
     }
+
     $template = fread($fp, filesize($tplfile));
     fclose($fp);
+
     $var_regexp = "((\\\$[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*)(\[[a-zA-Z0-9_\-\.\"\'\[\]\$\x7f-\xff]+\])*)";
     $const_regexp = "([a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*)";
+
     $template = preg_replace("/([\n\r]+)\t+/s", "\\1", $template);
     $template = preg_replace("/\<\!\-\-\{(.+?)\}\-\-\>/s", "{\\1}", $template);
+
     $template = str_replace("{LF}", "<?=\"\\n\"?>", $template);
+
     $template = preg_replace("/\{(\\\$[a-zA-Z0-9_\[\]\'\"\$\.\x7f-\xff]+)\}/s", "<?=\\1?>", $template);
     $template = preg_replace("/$var_regexp/es", "sm_addquote('<?=\\1?>')", $template);
     $template = preg_replace("/\<\?\=\<\?\=$var_regexp\?\>\?\>/es", "sm_addquote('<?=\\1?>')", $template);
-    $template = preg_replace("/\{url\s+(.+?)\}/ies", "url('\\1')", $template);
-    $template = preg_replace("/[\n\r\t]*\{template\s+([a-z0-9_]+)\}[\n\r\t]*/is", "\n<? include sm_template('\\1'); ?>\n", $template);
-    $template = preg_replace("/[\n\r\t]*\{template\s+(.+?)\}[\n\r\t]*/is", "\n<? include sm_template(\\1); ?>\n", $template);
-    $template = preg_replace("/[\n\r\t]*\{eval\s+(.+?)\}[\n\r\t]*/ies", "sm_stripvtags('<? \\1 ?>','')", $template);
-    $template = preg_replace("/[\n\r\t]*\{echo\s+(.+?)\}[\n\r\t]*/ies", "sm_stripvtags('\n<? echo \\1; ?>\n','')", $template);
-    $template = preg_replace("/[\n\r\t]*\{elseif\s+(.+?)\}[\n\r\t]*/ies", "sm_stripvtags('<? } elseif(\\1) { ?>','')", $template);
-    $template = preg_replace("/[\n\r\t]*\{else\}[\n\r\t]*/is", "<? } else { ?>", $template);
+  
+    $template = preg_replace("/[\n\r\t]*\{template\s+([a-z0-9_]+)\}[\n\r\t]*/is", "\n<?php include template('\\1'); ?>\n", $template);
+    $template = preg_replace("/[\n\r\t]*\{template\s+(.+?)\}[\n\r\t]*/is", "\n<?php include template(\\1); ?>\n", $template);
+    $template = preg_replace("/[\n\r\t]*\{eval\s+(.+?)\}[\n\r\t]*/ies", "sm_stripvtags('<?php \\1 ?>','')", $template);
+    $template = preg_replace("/[\n\r\t]*\{echo\s+(.+?)\}[\n\r\t]*/ies", "sm_stripvtags('\n<?php echo \\1; ?>\n','')", $template);
+    $template = preg_replace("/[\n\r\t]*\{elseif\s+(.+?)\}[\n\r\t]*/ies", "sm_stripvtags('<?php } elseif(\\1) { ?>','')", $template);
+    $template = preg_replace("/[\n\r\t]*\{else\}[\n\r\t]*/is", "<?php } else { ?>", $template);
+
     for($i = 0; $i < $nest; $i++) {
-        $template = preg_replace("/[\n\r\t]*\{loop\s+(\S+)\s+(\S+)\}[\n\r]*(.+?)[\n\r]*\{\/loop\}[\n\r\t]*/ies", "sm_stripvtags('\n<? if(is_array(\\1)) { foreach(\\1 as \\2) { ?>','\n\\3\n<? } } ?>\n')", $template);
-        $template = preg_replace("/[\n\r\t]*\{loop\s+(\S+)\s+(\S+)\s+(\S+)\}[\n\r\t]*(.+?)[\n\r\t]*\{\/loop\}[\n\r\t]*/ies", "sm_stripvtags('\n<? if(is_array(\\1)) { foreach(\\1 as \\2 => \\3) { ?>','\n\\4\n<? } } ?>\n')", $template);
-        $template = preg_replace("/[\n\r\t]*\{if\s+(.+?)\}[\n\r]*(.+?)[\n\r]*\{\/if\}[\n\r\t]*/ies", "sm_stripvtags('<? if(\\1) { ?>','\\2<? } ?>')", $template);
+        $template = preg_replace("/[\n\r\t]*\{loop\s+(\S+)\s+(\S+)\}[\n\r]*(.+?)[\n\r]*\{\/loop\}[\n\r\t]*/ies", "sm_stripvtags('\n<?php if(is_array(\\1)) { foreach(\\1 as \\2) { ?>','\n\\3\n<?php } } ?>\n')", $template);
+        $template = preg_replace("/[\n\r\t]*\{loop\s+(\S+)\s+(\S+)\s+(\S+)\}[\n\r\t]*(.+?)[\n\r\t]*\{\/loop\}[\n\r\t]*/ies", "sm_stripvtags('\n<?php if(is_array(\\1)) { foreach(\\1 as \\2 => \\3) { ?>','\n\\4\n<?php } } ?>\n')", $template);
+        $template = preg_replace("/[\n\r\t]*\{if\s+(.+?)\}[\n\r]*(.+?)[\n\r]*\{\/if\}[\n\r\t]*/ies", "sm_stripvtags('<?php if(\\1) { ?>','\\2<?php } ?>')", $template);
     }
+
     $template = preg_replace("/\{$const_regexp\}/s", "<?=\\1?>", $template);
     $template = preg_replace("/ \?\>[\n\r]*\<\? /s", " ", $template);
-    if(!$fp = fopen($objfile, 'w')) {
-        throw new smException ("$objfile not found or have no access!");
+
+    if(!@$fp = fopen($objfile, 'w')) {
+        die("$objfile not found or have no access!");
     }
-    $template = preg_replace("/\"(http)?[\w\.\/:]+\?[^\"]+?&[^\"]+?\"/e", "sm_transamp('\\0')", $template);
-    $template = preg_replace("/\<script[^\>]*?src=\"(.+?)\".*?\>\s*\<\/script\>/ise", "sm_stripscriptamp('\\1')", $template);
+
+    $template = preg_replace("/\"(http)?[\w\.\/:]+\?[^\"]+?&[^\"]+?\"/e", "transamp('\\0')", $template);
+    $template = preg_replace("/\<script[^\>]*?src=\"(.+?)\".*?\>\s*\<\/script\>/ise", "stripscriptamp('\\1')", $template);
+
     flock($fp, 2);
     fwrite($fp, $template);
     fclose($fp);
@@ -678,8 +724,9 @@ class smApplication{
         throw new smException("method  missing:".$this->_name."->".$method);
     }
     /***  v include the view files;*/
-    function v($action=null){
-        global $sm_config;
+    function v($action=null,$template_type="php"){
+        global $sm_config,$sm_temp;
+        $sm_temp["template_type"]=$template_type;
         if(is_null($action))
             $action=$this->_last_action;
         else
@@ -687,12 +734,19 @@ class smApplication{
         $mod=$this->_name;
         if($sm_config["use_layout"]){
             //如果使用布局并且布局文件存在...
-            if(!include($sm_config["app_root"]."/app/layouts/$mod.php") )
-                return include($sm_config["app_root"]."/app/views/$mod/$action.php");
+            if(!include($sm_config["app_root"]."/app/layouts/$mod.php") ){
+                if($template_type=="html")
+                    return include sm_template($sm_config["app_root"]."/app/views/$mod/$action.html");
+                else
+                    return include($sm_config["app_root"]."/app/views/$mod/$action.php");
+            }
             else return true;
         }
         else{
-            return include($sm_config["app_root"]."/app/views/$mod/$action.php");
+            if($template_type=="html")
+                return include sm_template($sm_config["app_root"]."/app/views/$mod/$action.html");
+            else
+                return include($sm_config["app_root"]."/app/views/$mod/$action.php");
         }
     }
     /***   dispatch run the filters and real action method;*/ 
@@ -712,7 +766,10 @@ class smApplication{
         return false;
     }
     public function yield(){
-        global $sm_config;
+        global $sm_config,$sm_temp;
+        if($sm_temp["template_type"]=="html")
+        return include sm_template($sm_config["app_root"]."/app/views/".$this->_name."/".$this->_last_action.".html");
+        else 
         return include($sm_config["app_root"]."/app/views/".$this->_name."/".$this->_last_action.".php");
     }
     /***  establish_connect 建立默认连接,默认情况下读写用同一个链接; */
@@ -847,7 +904,7 @@ class smForm extends smChainable{
      * @param $name String HTML tag 的种类，可以是img,marquee,fieldset,iframe等等;
      * @param $args Array,一个有三个项的数组,第一个项是数据域名字,第二个是HTML属性,第三个是包含在标记里的innerhtml。
      */
-    function build($tag_name,$field_name,$inner_html,$html_attrs=NULL){
+    function build($tag_name,$field_name,$inner_html="",$html_attrs=NULL){
         $left_htmls = $this->_left($tag_name,$field_name,$html_attrs);
         if(in_array($tag_name,array(
             "input","button","img","link")))
@@ -913,22 +970,45 @@ function sm_urlmap($var, $direction=1) {
     return str_replace(array_keys($replaces), array_values($replaces), $var);
 }
 /**
- * 打开URL静态化功能
+ * 关于URL静态化的处理的例子
+@code
+$parse_models=
+    array(
+        "{controller}/{action}.{format}",
+        "{controller}/{action}/{id}-{cate}-{page}.{format}"=>
+        array(
+            "controller"=>"([^.^\/]*)",
+            "action"=>"([^.]*)"
+        ),
+        "{controller}/{action}/{id}.{format}"
+    );
+$url="hello/world/test/4-1-3.html";
+$parsed_patterns=(sm_compile_models($parse_models));
+$url="hello/world/test/4-1-3.html";
+print_r(sm_handle_url($parsed_patterns,$url));
+@endcode
  */
 function sm_open_shorturl(){
-    global $sm_config;
-    $url=substr($_SERVER["PHP_SELF"],18);
+    global $sm_config,$sm_temp;
     $url=$_SERVER["PHP_SELF"];
     $url=sm_urlmap($url,1);
-    echo $url."<br>";
     $parsed_patterns=(sm_compile_models($sm_config["url_routes"],$sm_config["url_namespace"]));
-    return sm_handle_url($parsed_patterns,$url);
+    $sm_temp["compiled_url_routes"]=$parsed_patterns;
+    $url_parsed=sm_handle_url($parsed_patterns,$url);
+	foreach($url_parsed["params"] as $k=>$v){
+		$_GET[$k]=$v;
+	}
+	$sm_temp["url_pattern"]=$url_parsed["current_template"];
 }
 function sm_get_url_fields($pat){
     preg_match_all("/{([a-zA-Z\_]*)}/i",$pat,$regs);
     return $regs[1];
 }
 function sm_compile_models($models,$namespace=""){
+    /**
+    $namespace=str_replace("/","\/",$namespace);
+    $namespace=str_replace("~","\~",$namespace);
+     */
     foreach($models as $k=>$v){
         if(is_array($v)&&!is_numeric($k)){
             $pat=$k;$field_rules=$v;
@@ -965,4 +1045,24 @@ function sm_handle_url($patterns,$url){
     }
     return false;
 }
+$sm_config["url_routes"]=
+    array(
+        "{controller}/{action}/{id}-{cate}-{page}.{format}"=>
+        array(
+            "controller"=>"([^.^\/]*)",
+            "action"=>"([^.]*)"
+        ),
+        "{controller}/{action}/{id}.{format}",
+        "{controller}/{action}/{id}",
+        "{controller}/{action}",
+        "{id}.{format}",
+        "{file}"
+    );
+$sm_config["url_namespace"]="/tmp/t.php/";
+$sm_config["url_maps"]=
+    array(
+        'v-' => 'question/view/',
+        'show-' => 'article/view/',
+        'c-' => 'comment/view/'
+    );
 $sm= new smObject();
