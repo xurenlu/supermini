@@ -16,6 +16,8 @@ $sm_config["app_root"]=dirname(__FILE__);
 $sm_config["encrypt_secret"]='832-832phfdsf8y4idfjer[iuyutrsedhjery874knr9342[gof]f@$%YE$#^*U*(^U#^&GHGFU*(JGRUo{PIU*%$IKJH6734iu734khgfdsfghqewjfdttyiupojunfrkjgttuikojrrds345yjuj234578ijhgdee3yuio9632shj;,gt5dxfyhjikl,tedgvnkop';
 $sm_config["url_routes"]=
     array(
+        "{controller}/{action}-{id}-{page}",
+        "{controller}/{action}-p-{page}",
         "{controller}/{action}/{id}-{cate}-{page}.{format}"=>
         array(
             "controller"=>"([^.^\/]*)",
@@ -27,10 +29,12 @@ $sm_config["url_routes"]=
         "{id}.{format}",
         "{file}"
     );
+$sm_config["url_namespace"]="/admin/";
 $sm_config["url_maps"]=
     array(
+        'post' => 'article/add/',
         'v-' => 'question/view/',
         'show-' => 'article/view/',
         'c-' => 'comment/view/'
-    );  
-$sm_config["url_namespace"]="/~renlu/tmp/t.php/";
+    );
+

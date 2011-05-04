@@ -8,6 +8,12 @@ Supermini 顾名思义,是一个特别小巧的PHP框架.我的目标是将它�
 这个框架使用一个叫$sm_config的数组来进行一些配置的设置,放在sm_config.php;您可以根据自己的需要来进行设置;比如设置数据库连接信息等;注意如果您不是确知自己在干些什么的话,不要删除sm_config中的某些项,那可能导致某些功能不能正常运转;
 数据库连接在$sm_config["mysql"][0]和$sm_config["mysql"][1]中.如果您没有设置主从,可以将两个信息设置成相同.如果需要使用主从,则0是主mysql的住处,1是从mysql的信息;
 
+
+框架使用一个叫$sm_temp的全局变量来存放一些在程序运行中可能改变的变量值.
+一些已经使用的变量名:
+$sm_temp["url_pattern"]:当使用sm_open_shorturl来启用伪静态URL的时候,会把当前的url正则存在这里;
+$sm_temp["use_shorturl"]:当使用sm_open_shorturl来启用伪静态URL的时候,会打开这个值(设置为true);
+
 整个框架主要的类有这些:
 smChainable:一些具有类似于jquery中$对象一些属性的类;就是方法的返回值仍然是这个对象本身.不关心方法的返回值,只关注执行这个方法产生的副作用.就提供了一个set方法.当调用未定义的方法时,实质是写属性值.比如调用smChainable::table("user"),table这个方法并不存在,因为就调用了smChainable::__call方法用写这个table属性了;
 smDB 花了很大力气写的数据库处理类.替代了上一代中的smTable类;

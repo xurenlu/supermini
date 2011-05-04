@@ -89,6 +89,21 @@ function sm_gen_url($string,$url_pattern=null,$get_args=array()){
 }
 function sm_url($args,$string=""){
     global $sm_temp;
+    if(!$sm_temp["use_shorturl"]){
+        if(!$args["controller"])
+            $args["controller"]=$sm_temp["controller"];
+        if(!$args["action"])
+            $args["action"]=$sm_temp["action"];
+        $arr=array();
+        foreach($args as $key=>$val){
+            if(!sm_test_urlencode($val)){
+                $val=urlencode($val);
+            }
+            $arr[]=$key."=".$val;
+        }
+        $pagestr="?".join("&",$arr);
+        return $pagestr;
+    }
     if(!isset($args["controller"]))
         $args["controller"]=$sm_temp["controller"];
     if(!isset($args["action"]))
@@ -999,6 +1014,7 @@ function sm_open_shorturl(){
 		$_GET[$k]=$v;
 	}
 	$sm_temp["url_pattern"]=$url_parsed["current_template"];
+    $sm_temp["use_shorturl"]=true;
 }
 function sm_get_url_fields($pat){
     preg_match_all("/{([a-zA-Z\_]*)}/i",$pat,$regs);
@@ -1045,24 +1061,23 @@ function sm_handle_url($patterns,$url){
     }
     return false;
 }
-$sm_config["url_routes"]=
-    array(
-        "{controller}/{action}/{id}-{cate}-{page}.{format}"=>
-        array(
-            "controller"=>"([^.^\/]*)",
-            "action"=>"([^.]*)"
-        ),
-        "{controller}/{action}/{id}.{format}",
-        "{controller}/{action}/{id}",
-        "{controller}/{action}",
-        "{id}.{format}",
-        "{file}"
-    );
-$sm_config["url_namespace"]="/tmp/t.php/";
-$sm_config["url_maps"]=
-    array(
-        'v-' => 'question/view/',
-        'show-' => 'article/view/',
-        'c-' => 'comment/view/'
-    );
+/**
+ * sm_undo_magic_quotes_array 和sm_fixgpc用于解决有的服务器打开了magic_gpc设置的问题;
+ * */
+function sm_undo_magic_quotes_array($array){   
+    return is_array($array) ? array_map('undo_magic_quotes_array',      $array) : str_replace("\\'", "'",
+        str_replace("\\\"", "\"",
+        str_replace("\\\\", "\\",
+        str_replace("\\\x00", "\x00", $array))));
+}   
+function sm_fixgpc(){
+    if(get_magic_quotes_gpc()){   
+        $_GET = sm_undo_magic_quotes_array($_GET);
+        $_POST = sm_undo_magic_quotes_array($_POST);
+        $_COOKIE = sm_undo_magic_quotes_array($_COOKIE);
+        $_FILES = sm_undo_magic_quotes_array($_FILES);
+        $_REQUEST = sm_undo_magic_quotes_array($_REQUEST);
+    }  
+}
 $sm= new smObject();
+sm_fixgpc();
