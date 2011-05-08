@@ -108,7 +108,6 @@ function sm_url($args,$string=""){
         $args["controller"]=$sm_temp["controller"];
     if(!isset($args["action"]))
         $args["action"]=$sm_temp["action"];
-
     $keys=array_keys($args);
     sort($keys);
     foreach($sm_temp["compiled_url_routes"] as $k=>$v){
@@ -467,9 +466,13 @@ class smCache extends smChainable {
     /***   __construct */ 
     function __construct($group_id){
         global $sm_config;
-        $mem=new memcache();
-        foreach($sm_config["memcache"][$group_id] as $server){
-            $mem->addServer($server["host"],$server["port"]);
+        if(defined("SAE_MYSQL_USER")){
+            $mem=memcache_init();
+        }else{
+            $mem=new memcache();
+            foreach($sm_config["memcache"][$group_id] as $server){
+                $mem->addServer($server["host"],$server["port"]);
+            }
         }
 		$this->expire(7200);
 		$this->flag(0);
@@ -627,49 +630,37 @@ function sm_template($file) {
 }
 function sm_parse_template($tplfile, $objfile) {
     $nest = 5;
-
     if(!@$fp = fopen($tplfile, 'r')) {
         exit("Current template file '$tplfile' not found or have no access!");
     }
-
     $template = fread($fp, filesize($tplfile));
     fclose($fp);
-
     $var_regexp = "((\\\$[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*)(\[[a-zA-Z0-9_\-\.\"\'\[\]\$\x7f-\xff]+\])*)";
     $const_regexp = "([a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*)";
-
     $template = preg_replace("/([\n\r]+)\t+/s", "\\1", $template);
     $template = preg_replace("/\<\!\-\-\{(.+?)\}\-\-\>/s", "{\\1}", $template);
-
     $template = str_replace("{LF}", "<?=\"\\n\"?>", $template);
-
     $template = preg_replace("/\{(\\\$[a-zA-Z0-9_\[\]\'\"\$\.\x7f-\xff]+)\}/s", "<?=\\1?>", $template);
     $template = preg_replace("/$var_regexp/es", "sm_addquote('<?=\\1?>')", $template);
     $template = preg_replace("/\<\?\=\<\?\=$var_regexp\?\>\?\>/es", "sm_addquote('<?=\\1?>')", $template);
-  
     $template = preg_replace("/[\n\r\t]*\{template\s+([a-z0-9_]+)\}[\n\r\t]*/is", "\n<?php include template('\\1'); ?>\n", $template);
     $template = preg_replace("/[\n\r\t]*\{template\s+(.+?)\}[\n\r\t]*/is", "\n<?php include template(\\1); ?>\n", $template);
     $template = preg_replace("/[\n\r\t]*\{eval\s+(.+?)\}[\n\r\t]*/ies", "sm_stripvtags('<?php \\1 ?>','')", $template);
     $template = preg_replace("/[\n\r\t]*\{echo\s+(.+?)\}[\n\r\t]*/ies", "sm_stripvtags('\n<?php echo \\1; ?>\n','')", $template);
     $template = preg_replace("/[\n\r\t]*\{elseif\s+(.+?)\}[\n\r\t]*/ies", "sm_stripvtags('<?php } elseif(\\1) { ?>','')", $template);
     $template = preg_replace("/[\n\r\t]*\{else\}[\n\r\t]*/is", "<?php } else { ?>", $template);
-
     for($i = 0; $i < $nest; $i++) {
         $template = preg_replace("/[\n\r\t]*\{loop\s+(\S+)\s+(\S+)\}[\n\r]*(.+?)[\n\r]*\{\/loop\}[\n\r\t]*/ies", "sm_stripvtags('\n<?php if(is_array(\\1)) { foreach(\\1 as \\2) { ?>','\n\\3\n<?php } } ?>\n')", $template);
         $template = preg_replace("/[\n\r\t]*\{loop\s+(\S+)\s+(\S+)\s+(\S+)\}[\n\r\t]*(.+?)[\n\r\t]*\{\/loop\}[\n\r\t]*/ies", "sm_stripvtags('\n<?php if(is_array(\\1)) { foreach(\\1 as \\2 => \\3) { ?>','\n\\4\n<?php } } ?>\n')", $template);
         $template = preg_replace("/[\n\r\t]*\{if\s+(.+?)\}[\n\r]*(.+?)[\n\r]*\{\/if\}[\n\r\t]*/ies", "sm_stripvtags('<?php if(\\1) { ?>','\\2<?php } ?>')", $template);
     }
-
     $template = preg_replace("/\{$const_regexp\}/s", "<?=\\1?>", $template);
     $template = preg_replace("/ \?\>[\n\r]*\<\? /s", " ", $template);
-
     if(!@$fp = fopen($objfile, 'w')) {
         die("$objfile not found or have no access!");
     }
-
     $template = preg_replace("/\"(http)?[\w\.\/:]+\?[^\"]+?&[^\"]+?\"/e", "transamp('\\0')", $template);
     $template = preg_replace("/\<script[^\>]*?src=\"(.+?)\".*?\>\s*\<\/script\>/ise", "stripscriptamp('\\1')", $template);
-
     flock($fp, 2);
     fwrite($fp, $template);
     fclose($fp);
@@ -985,23 +976,7 @@ function sm_urlmap($var, $direction=1) {
     return str_replace(array_keys($replaces), array_values($replaces), $var);
 }
 /**
- * 关于URL静态化的处理的例子
-@code
-$parse_models=
-    array(
-        "{controller}/{action}.{format}",
-        "{controller}/{action}/{id}-{cate}-{page}.{format}"=>
-        array(
-            "controller"=>"([^.^\/]*)",
-            "action"=>"([^.]*)"
-        ),
-        "{controller}/{action}/{id}.{format}"
-    );
-$url="hello/world/test/4-1-3.html";
-$parsed_patterns=(sm_compile_models($parse_models));
-$url="hello/world/test/4-1-3.html";
-print_r(sm_handle_url($parsed_patterns,$url));
-@endcode
+ * URL静态化的处理
  */
 function sm_open_shorturl(){
     global $sm_config,$sm_temp;
@@ -1021,10 +996,6 @@ function sm_get_url_fields($pat){
     return $regs[1];
 }
 function sm_compile_models($models,$namespace=""){
-    /**
-    $namespace=str_replace("/","\/",$namespace);
-    $namespace=str_replace("~","\~",$namespace);
-     */
     foreach($models as $k=>$v){
         if(is_array($v)&&!is_numeric($k)){
             $pat=$k;$field_rules=$v;
@@ -1043,7 +1014,6 @@ function sm_compile_models($models,$namespace=""){
             $real_pattern=str_replace($f."}",$f.">".$rule.")",$real_pattern);
         }
         $real_pattern="/^".$real_pattern."/";
-
         $list[]=array("rules"=>$field_rules,"pat"=>$pat,"real_pattern"=>$real_pattern,"fields"=>$fields);
     }
     return $list;
@@ -1061,14 +1031,9 @@ function sm_handle_url($patterns,$url){
     }
     return false;
 }
-/**
- * sm_undo_magic_quotes_array 和sm_fixgpc用于解决有的服务器打开了magic_gpc设置的问题;
- * */
+/** * sm_undo_magic_quotes_array 和sm_fixgpc用于解决有的服务器打开了magic_gpc设置的问题; * */
 function sm_undo_magic_quotes_array($array){   
-    return is_array($array) ? array_map('undo_magic_quotes_array',      $array) : str_replace("\\'", "'",
-        str_replace("\\\"", "\"",
-        str_replace("\\\\", "\\",
-        str_replace("\\\x00", "\x00", $array))));
+    return is_array($array) ? array_map('undo_magic_quotes_array',$array) : str_replace("\\'", "'", str_replace("\\\"", "\"", str_replace("\\\\", "\\", str_replace("\\\x00", "\x00", $array))));
 }   
 function sm_fixgpc(){
     if(get_magic_quotes_gpc()){   
