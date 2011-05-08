@@ -913,7 +913,7 @@ class smForm extends smChainable{
     function build($tag_name,$field_name,$inner_html="",$html_attrs=NULL){
         $left_htmls = $this->_left($tag_name,$field_name,$html_attrs);
         if(in_array($tag_name,array(
-            "input","button","img","link")))
+            "input","img","link")))
         {
             $str.=$left_htmls."/>";
         }else{
@@ -931,7 +931,11 @@ class smForm extends smChainable{
     }
     function _left($tag_name,$field_name,$html_attrs=null){
         if($field_name){
-            $str="<".$tag_name." id=\"".$this->_form_name."_".$field_name."\" name=\"".$this->_form_name."[".$field_name."]\" ";
+            if($tag_name!="label"){
+                $str="<".$tag_name." id=\"".$this->_form_name."_".$field_name."\" name=\"".$this->_form_name."[".$field_name."]\" ";
+            }else{
+                $str="<".$tag_name."  ";
+            }
         }
         else{
             $str="<".$tag_name." ";
@@ -985,7 +989,7 @@ function sm_open_shorturl(){
     $parsed_patterns=(sm_compile_models($sm_config["url_routes"],$sm_config["url_namespace"]));
     $sm_temp["compiled_url_routes"]=$parsed_patterns;
     $url_parsed=sm_handle_url($parsed_patterns,$url);
-	foreach($url_parsed["params"] as $k=>$v){
+	if($url_parsed["params"]) foreach($url_parsed["params"] as $k=>$v){
 		$_GET[$k]=$v;
 	}
 	$sm_temp["url_pattern"]=$url_parsed["current_template"];
