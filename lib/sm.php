@@ -124,7 +124,8 @@ function sm_url($args,$string=""){
         $string = $pattern;
 	    foreach($args as $k=>$v){
 	        $string=str_replace("{".$k."}",$v,$string);
-	    }	
+        }	
+        $string=sm_urlmap($string,2);
 		return $string;
 	}
 }
