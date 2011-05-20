@@ -689,19 +689,12 @@ class smApplication{
         $mod=$this->_name;
         if($sm_config["use_layout"]){
             //如果使用布局并且布局文件存在...
-            if(!include($sm_config["app_root"]."/app/layouts/$mod.php") ){
-                if($template_type=="html")
-                    return include sm_template($sm_config["app_root"]."/app/views/$mod/$action.html");
-                else
+            if(!include($sm_config["app_root"]."/app/layouts/$mod.php"))
+                if(!include($sm_config["app_root"]."/app/layouts/application.php"))
                     return include($sm_config["app_root"]."/app/views/$mod/$action.php");
-            }
-            else return true;
         }
         else{
-            if($template_type=="html")
-                return include sm_template($sm_config["app_root"]."/app/views/$mod/$action.html");
-            else
-                return include($sm_config["app_root"]."/app/views/$mod/$action.php");
+            return include($sm_config["app_root"]."/app/views/$mod/$action.php");
         }
     }
     /***   dispatch run the filters and real action method;*/ 
