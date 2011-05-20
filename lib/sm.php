@@ -72,21 +72,6 @@ function  smApplyEvent(&$data,$dataName) {
                 $filter(  $data);
         }
 }
-/***   sm_gen_url 拼凑URL时用到;*/ 
-function sm_gen_url($string,$url_pattern=null,$get_args=array()){
-	global $sm_temp;
-	if($url_pattern === NULL){
-		$url_pattern = $sm_temp["url_pattern"];
-	}
-    $targetURL=$url_pattern;
-    foreach($get_args as $k=>$v){
-        $targetURL=str_replace("{".$k."}",$v,$targetURL);
-    }
-    if(strlen($targetURL)>0)
-        return  $targetURL;
-    else 
-        return $string;
-}
 function sm_url($args,$string=""){
     global $sm_temp;
     if(!$sm_temp["use_shorturl"]){
@@ -118,6 +103,17 @@ function sm_url($args,$string=""){
         }
     }
     if(!isset($pattern)){
+        $controller = $args["controller"];
+        $action = $args["action"];
+        unset($args["controller"]);
+        unset($args["action"]);
+        foreach($args as $key=>$val){
+            if(!sm_test_urlencode($val)){
+                $val=urlencode($val);
+            }
+            $arr[]=$key."=".$val;
+        }
+        $string =sm_url(array("controller"=>$controller,"action"=>$action))."?".join("&",$arr);
         return $string;
     }
     else{
