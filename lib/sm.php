@@ -72,6 +72,7 @@ function  smApplyEvent(&$data,$dataName) {
                 $filter(  $data);
         }
 }
+/** generate URL by $_GET arguments */
 function sm_url($args,$string=""){
     global $sm_temp;
     if(!$sm_temp["use_shorturl"]){
@@ -441,6 +442,10 @@ class smObject {
 }
 /** class smException ,就是一个空类，继承了exception */
 class smException  extends Exception{}
+/** Chainable 是一个比较特别的类,是基本上所有的方法返回的都是对象自己本身;
+ * 主要是使用就是设置一个属性;
+ * 调用法是:$smChainable->attribute_name(attribute_value);
+ **/
 class smChainable {
     var $attrs=array();
     function set($name,$value){
@@ -451,6 +456,7 @@ class smChainable {
         $this->set($name,$args[0]);
         return $this;
     }
+    /** 删除所有附加的属性;*/
     function reset(){
         $this->attrs=array();
     }
@@ -482,6 +488,7 @@ class smCache extends smChainable {
     function set($key,$val,$expire=7200){
         return  $this->_memcache->set($key,$val,$this->attrs["flag"],$this->attrs["expire"]);
     }
+    /** 删除memcache key */
     function delete($key){
         return $this->_memcache->delete($key);
     }
@@ -490,7 +497,7 @@ class smCache extends smChainable {
 	}
 }
 /**
-* smDB::table("users")->cache("users.page.1")->rows();
+ * smDB 是数据操作类
 */
 class smDB extends smChainable {
     private $_rconn=null;
@@ -498,6 +505,9 @@ class smDB extends smChainable {
     private $_pagesize=null;
     private $_page_var = "page";
     private $_extra_args = null;
+    /**
+     * 重置属性(主要是重置查询条件)
+     * */
     function reset(){
         $this->attrs= array("where"=>null,"group"=>null,"order"=>null,"limit"=>null,"select"=>null);
     	return 1;
@@ -525,6 +535,7 @@ class smDB extends smChainable {
         $this->_pagesize=($sm_config["pagesize"]>0)?$sm_config["pagesize"]:20;
         $this->reset();
     }
+    /** 返回符合条件的若干行 */
     function rows($clear=true){
 	   if($this->attrs["cache_key"]&&($tmp=$sm->cache_group_1->get($this->attrs["cache_key"]))){
 			if(!empty($tmp))
@@ -538,6 +549,7 @@ class smDB extends smChainable {
             $this->reset();
         return $rows; 
     }
+    /**  查询一条记录 **/
     function row($clear=true){
 	   if($this->attrs["cache_key"]&&($tmp=$sm->cache_group_1->get($this->attrs["cache_key"]))){
 			if(!empty($tmp))
@@ -551,6 +563,7 @@ class smDB extends smChainable {
             $this->reset();
         return $row; 
     }
+    /** 查询出一页的数据,并自动处理分页 */
     function page($clear=true){
         if(!($_GET[$this->_page_var]>0))
             $pagenow=1;
@@ -564,6 +577,7 @@ class smDB extends smChainable {
         $this->reset();
         return array("total"=>$total,"entries"=>$rows,"page"=>$pagestr);
     }
+    /** 查询符合条件的记录的行数 */
     function count($clear=true){
         $sql=smSql::select($this->attrs["table"],"count(*) as c",$this->attrs["where"],$this->attrs["order_by"],"1",$this->attrs["group_by"],$this->attrs["join"],$this->attrs["on"]);
         $row=sm_fetch_row($sql,$this->_rconn);
@@ -575,12 +589,9 @@ class smDB extends smChainable {
     function insert_id(){
         return mysql_insert_id($this->_wconn); 
     }
+    /** 取得受影响的行数 */
     function affected_rows(){
         return mysql_affected_rows($this->_wconn);
-    }
-    function desc(){
-        $rows=sm_fetch_rows("desc ".$this->_table,$this->_rconn);
-        return $rows;
     }
 	/***  update_by 根据条件更新数据;*/ 
     function update($clear=true){
@@ -591,6 +602,7 @@ class smDB extends smChainable {
 	    	$this->reset();	
         return sm_query($sql,$this->_wconn); 
     }
+    /** 删除符合条件的记录 */
     function delete($clear=true){
         if(!$this->attrs["limit"])
             $this->set("limit",1);
@@ -599,18 +611,22 @@ class smDB extends smChainable {
 	            $this->reset();
         return sm_query($sql,$this->_wconn);
     }
+    /** smDB::delete 的别名 */
     function remove($clear=true){
         return $this->delete($clear);
     }
+    /** 插入一条记录 */
 	function insert($type="INSERT",$clear=true){
 		$sql=smSql::insert($this->attrs["table"],$this->attrs["values"],$type);
 		  if($clear)
 	            $this->reset();
         return sm_query($sql,$this->_wconn);
     }
+    /** smDB::Create的别名 */
     function create($type="INSERT",$clear=true){
         return $this->insert($type,$clear);
     }
+    /** 直接执行一条sql语句 */
     function query($sql){
         return sm_query($sql,$this->_wconn);
     }
@@ -1031,6 +1047,7 @@ function sm_handle_url($patterns,$url){
 function sm_undo_magic_quotes_array($array){   
     return is_array($array) ? array_map('undo_magic_quotes_array',$array) : str_replace("\\'", "'", str_replace("\\\"", "\"", str_replace("\\\\", "\\", str_replace("\\\x00", "\x00", $array))));
 }   
+/** 修正magic_quotes这个愚蠢的烦人的恼火的功能带来的不爽 */
 function sm_fixgpc(){
     if(get_magic_quotes_gpc()){   
         $_GET = sm_undo_magic_quotes_array($_GET);
