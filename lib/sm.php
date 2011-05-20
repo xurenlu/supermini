@@ -72,21 +72,7 @@ function  smApplyEvent(&$data,$dataName) {
                 $filter(  $data);
         }
 }
-/***   sm_gen_url 拼凑URL时用到;*/ 
-function sm_gen_url($string,$url_pattern=null,$get_args=array()){
-	global $sm_temp;
-	if($url_pattern === NULL){
-		$url_pattern = $sm_temp["url_pattern"];
-	}
-    $targetURL=$url_pattern;
-    foreach($get_args as $k=>$v){
-        $targetURL=str_replace("{".$k."}",$v,$targetURL);
-    }
-    if(strlen($targetURL)>0)
-        return  $targetURL;
-    else 
-        return $string;
-}
+/** generate URL by $_GET arguments */
 function sm_url($args,$string=""){
     global $sm_temp;
     if(!$sm_temp["use_shorturl"]){
@@ -118,6 +104,17 @@ function sm_url($args,$string=""){
         }
     }
     if(!isset($pattern)){
+        $controller = $args["controller"];
+        $action = $args["action"];
+        unset($args["controller"]);
+        unset($args["action"]);
+        foreach($args as $key=>$val){
+            if(!sm_test_urlencode($val)){
+                $val=urlencode($val);
+            }
+            $arr[]=$key."=".$val;
+        }
+        $string =sm_url(array("controller"=>$controller,"action"=>$action))."?".join("&",$arr);
         return $string;
     }
     else{
@@ -446,6 +443,10 @@ class smObject {
 }
 /** class smException ,就是一个空类，继承了exception */
 class smException  extends Exception{}
+/** Chainable 是一个比较特别的类,是基本上所有的方法返回的都是对象自己本身;
+ * 主要是使用就是设置一个属性;
+ * 调用法是:$smChainable->attribute_name(attribute_value);
+ **/
 class smChainable {
     var $attrs=array();
     function set($name,$value){
@@ -456,6 +457,7 @@ class smChainable {
         $this->set($name,$args[0]);
         return $this;
     }
+    /** 删除所有附加的属性;*/
     function reset(){
         $this->attrs=array();
     }
@@ -487,6 +489,7 @@ class smCache extends smChainable {
     function set($key,$val,$expire=7200){
         return  $this->_memcache->set($key,$val,$this->attrs["flag"],$this->attrs["expire"]);
     }
+    /** 删除memcache key */
     function delete($key){
         return $this->_memcache->delete($key);
     }
@@ -495,7 +498,7 @@ class smCache extends smChainable {
 	}
 }
 /**
-* smDB::table("users")->cache("users.page.1")->rows();
+ * smDB 是数据操作类
 */
 class smDB extends smChainable {
     private $_rconn=null;
@@ -503,6 +506,9 @@ class smDB extends smChainable {
     private $_pagesize=null;
     private $_page_var = "page";
     private $_extra_args = null;
+    /**
+     * 重置属性(主要是重置查询条件)
+     * */
     function reset(){
         $this->attrs= array("where"=>null,"group"=>null,"order"=>null,"limit"=>null,"select"=>null);
     	return 1;
@@ -530,6 +536,7 @@ class smDB extends smChainable {
         $this->_pagesize=($sm_config["pagesize"]>0)?$sm_config["pagesize"]:20;
         $this->reset();
     }
+    /** 返回符合条件的若干行 */
     function rows($clear=true){
 	   if($this->attrs["cache_key"]&&($tmp=$sm->cache_group_1->get($this->attrs["cache_key"]))){
 			if(!empty($tmp))
@@ -543,6 +550,7 @@ class smDB extends smChainable {
             $this->reset();
         return $rows; 
     }
+    /**  查询一条记录 **/
     function row($clear=true){
 	   if($this->attrs["cache_key"]&&($tmp=$sm->cache_group_1->get($this->attrs["cache_key"]))){
 			if(!empty($tmp))
@@ -556,6 +564,7 @@ class smDB extends smChainable {
             $this->reset();
         return $row; 
     }
+    /** 查询出一页的数据,并自动处理分页 */
     function page($clear=true){
         if(!($_GET[$this->_page_var]>0))
             $pagenow=1;
@@ -569,6 +578,7 @@ class smDB extends smChainable {
         $this->reset();
         return array("total"=>$total,"entries"=>$rows,"page"=>$pagestr);
     }
+    /** 查询符合条件的记录的行数 */
     function count($clear=true){
         $sql=smSql::select($this->attrs["table"],"count(*) as c",$this->attrs["where"],$this->attrs["order_by"],"1",$this->attrs["group_by"],$this->attrs["join"],$this->attrs["on"]);
         $row=sm_fetch_row($sql,$this->_rconn);
@@ -580,12 +590,9 @@ class smDB extends smChainable {
     function insert_id(){
         return mysql_insert_id($this->_wconn); 
     }
+    /** 取得受影响的行数 */
     function affected_rows(){
         return mysql_affected_rows($this->_wconn);
-    }
-    function desc(){
-        $rows=sm_fetch_rows("desc ".$this->_table,$this->_rconn);
-        return $rows;
     }
 	/***  update_by 根据条件更新数据;*/ 
     function update($clear=true){
@@ -596,6 +603,7 @@ class smDB extends smChainable {
 	    	$this->reset();	
         return sm_query($sql,$this->_wconn); 
     }
+    /** 删除符合条件的记录 */
     function delete($clear=true){
         if(!$this->attrs["limit"])
             $this->set("limit",1);
@@ -604,85 +612,25 @@ class smDB extends smChainable {
 	            $this->reset();
         return sm_query($sql,$this->_wconn);
     }
+    /** smDB::delete 的别名 */
     function remove($clear=true){
         return $this->delete($clear);
     }
+    /** 插入一条记录 */
 	function insert($type="INSERT",$clear=true){
 		$sql=smSql::insert($this->attrs["table"],$this->attrs["values"],$type);
 		  if($clear)
 	            $this->reset();
         return sm_query($sql,$this->_wconn);
     }
+    /** smDB::Create的别名 */
     function create($type="INSERT",$clear=true){
         return $this->insert($type,$clear);
     }
+    /** 直接执行一条sql语句 */
     function query($sql){
         return sm_query($sql,$this->_wconn);
     }
-}
-function sm_template($file) {
-    global $sm_config;
-    $tplfile = $file ;
-    $objfile = $sm_config["app_root"]. '/data/compiled/' .str_replace("/","_",$file) . '.tpl.php';
-    if (!file_exists($objfile) || (filemtime($tplfile) > filemtime($objfile))) {
-        sm_parse_template($tplfile, $objfile);
-    }
-    return $objfile;
-}
-function sm_parse_template($tplfile, $objfile) {
-    $nest = 5;
-    if(!@$fp = fopen($tplfile, 'r')) {
-        exit("Current template file '$tplfile' not found or have no access!");
-    }
-    $template = fread($fp, filesize($tplfile));
-    fclose($fp);
-    $var_regexp = "((\\\$[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*)(\[[a-zA-Z0-9_\-\.\"\'\[\]\$\x7f-\xff]+\])*)";
-    $const_regexp = "([a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*)";
-    $template = preg_replace("/([\n\r]+)\t+/s", "\\1", $template);
-    $template = preg_replace("/\<\!\-\-\{(.+?)\}\-\-\>/s", "{\\1}", $template);
-    $template = str_replace("{LF}", "<?=\"\\n\"?>", $template);
-    $template = preg_replace("/\{(\\\$[a-zA-Z0-9_\[\]\'\"\$\.\x7f-\xff]+)\}/s", "<?=\\1?>", $template);
-    $template = preg_replace("/$var_regexp/es", "sm_addquote('<?=\\1?>')", $template);
-    $template = preg_replace("/\<\?\=\<\?\=$var_regexp\?\>\?\>/es", "sm_addquote('<?=\\1?>')", $template);
-    $template = preg_replace("/[\n\r\t]*\{template\s+([a-z0-9_]+)\}[\n\r\t]*/is", "\n<?php include template('\\1'); ?>\n", $template);
-    $template = preg_replace("/[\n\r\t]*\{template\s+(.+?)\}[\n\r\t]*/is", "\n<?php include template(\\1); ?>\n", $template);
-    $template = preg_replace("/[\n\r\t]*\{eval\s+(.+?)\}[\n\r\t]*/ies", "sm_stripvtags('<?php \\1 ?>','')", $template);
-    $template = preg_replace("/[\n\r\t]*\{echo\s+(.+?)\}[\n\r\t]*/ies", "sm_stripvtags('\n<?php echo \\1; ?>\n','')", $template);
-    $template = preg_replace("/[\n\r\t]*\{elseif\s+(.+?)\}[\n\r\t]*/ies", "sm_stripvtags('<?php } elseif(\\1) { ?>','')", $template);
-    $template = preg_replace("/[\n\r\t]*\{else\}[\n\r\t]*/is", "<?php } else { ?>", $template);
-    for($i = 0; $i < $nest; $i++) {
-        $template = preg_replace("/[\n\r\t]*\{loop\s+(\S+)\s+(\S+)\}[\n\r]*(.+?)[\n\r]*\{\/loop\}[\n\r\t]*/ies", "sm_stripvtags('\n<?php if(is_array(\\1)) { foreach(\\1 as \\2) { ?>','\n\\3\n<?php } } ?>\n')", $template);
-        $template = preg_replace("/[\n\r\t]*\{loop\s+(\S+)\s+(\S+)\s+(\S+)\}[\n\r\t]*(.+?)[\n\r\t]*\{\/loop\}[\n\r\t]*/ies", "sm_stripvtags('\n<?php if(is_array(\\1)) { foreach(\\1 as \\2 => \\3) { ?>','\n\\4\n<?php } } ?>\n')", $template);
-        $template = preg_replace("/[\n\r\t]*\{if\s+(.+?)\}[\n\r]*(.+?)[\n\r]*\{\/if\}[\n\r\t]*/ies", "sm_stripvtags('<?php if(\\1) { ?>','\\2<?php } ?>')", $template);
-    }
-    $template = preg_replace("/\{$const_regexp\}/s", "<?=\\1?>", $template);
-    $template = preg_replace("/ \?\>[\n\r]*\<\? /s", " ", $template);
-    if(!@$fp = fopen($objfile, 'w')) {
-        die("$objfile not found or have no access!");
-    }
-    $template = preg_replace("/\"(http)?[\w\.\/:]+\?[^\"]+?&[^\"]+?\"/e", "transamp('\\0')", $template);
-    $template = preg_replace("/\<script[^\>]*?src=\"(.+?)\".*?\>\s*\<\/script\>/ise", "stripscriptamp('\\1')", $template);
-    flock($fp, 2);
-    fwrite($fp, $template);
-    fclose($fp);
-}
-function sm_transamp($str) {
-    $str = str_replace('&', '&amp;', $str);
-    $str = str_replace('&amp;amp;', '&amp;', $str);
-    $str = str_replace('\"', '"', $str);
-    return $str;
-}
-function sm_addquote($var) {
-    return str_replace("\\\"", "\"", preg_replace("/\[([a-zA-Z0-9_\-\.\x7f-\xff]+)\]/s", "['\\1']", $var));
-}
-function sm_stripvtags($expr, $statement) {
-    $expr = str_replace("\\\"", "\"", preg_replace("/\<\?\=(\\\$.+?)\?\>/s", "\\1", $expr));
-    $statement = str_replace("\\\"", "\"", $statement);
-    return $expr.$statement;
-}
-function sm_stripscriptamp($s) {
-    $s = str_replace('&amp;', '&', $s);
-    return "<script src=\"$s\" type=\"text/javascript\"></script>";
 }
 /**
  * @brief	smApplication Mvc 功能主要在这里实现
@@ -1040,6 +988,7 @@ function sm_handle_url($patterns,$url){
 function sm_undo_magic_quotes_array($array){   
     return is_array($array) ? array_map('undo_magic_quotes_array',$array) : str_replace("\\'", "'", str_replace("\\\"", "\"", str_replace("\\\\", "\\", str_replace("\\\x00", "\x00", $array))));
 }   
+/** 修正magic_quotes这个愚蠢的烦人的恼火的功能带来的不爽 */
 function sm_fixgpc(){
     if(get_magic_quotes_gpc()){   
         $_GET = sm_undo_magic_quotes_array($_GET);
