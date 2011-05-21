@@ -771,7 +771,10 @@ class smForm extends smChainable{
      * @param $action String,Form表单的提交地址。
      * @param $html_attrs Array,Form表单附加的其他属性;
      */
-    function openform($action,$html_attrs=array("method"=>"POST")){
+    function openform($action,$html_attrs=array("method"=>"POST"),$upload=false){
+        if($upload){
+            $html_attrs["enctype"]="multipart/form-data";
+        }
         $str="<form  action='$action' ";
         foreach($html_attrs as $k=>$v){
             $str.=" $k='".$v."' ";
