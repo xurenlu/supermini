@@ -713,6 +713,16 @@ class smApplication{
         $this->_app->_method_missing($action); // 调用method_missing方法; 
         return false;
     }
+    function redirect($args,$action=null,$controller=null){
+        if($action === NULL) $action=$this->_last_action;
+        if($controller === NULL)  $controller = $_GET["controller"];
+        if(!$args["action"])
+        $args["action"]=$action;
+        if(!$args["controller"])
+        $args["controller"]=$controller;
+        header("Location:".sm_url($args));
+        exit();
+    }
     public function yield(){
         global $sm_config,$sm_temp;
         if($sm_temp["template_type"]=="html")
@@ -799,7 +809,7 @@ class smForm extends smChainable{
      */
     function textarea($field_name){
         $value=$this->_get_value($field_name,$this->attrs);
-        $html= $this->_left("textarea",$field_name);
+        $html= $this->_left("textarea",$field_name,$this->attrs);
         $html.=">".htmlspecialchars($value)."</textarea>";
         $this->reset();
         return $html;
@@ -808,7 +818,7 @@ class smForm extends smChainable{
     function textbox($field_name){
         $value=$this->_get_value($field_name,$this->attrs);
         $this->set("value",$value);
-        $html=$this->build("input",$field_name);
+        $html=$this->build("input",$field_name,$this->attrs);
         $this->reset();
         return $html;
     }
@@ -820,14 +830,14 @@ class smForm extends smChainable{
         $checked_value=$this->_get_value($field_name,array());
         if($checked_value==$html_attrs["value"])
             $html_attrs["checked"]="checked";
-        $html=$this->build("input",$field_name);
+        $html=$this->build("input",$field_name,$this->attrs);
         $this->reset();
         return $html;
     }
     /** 输出一个提交按钮 */
     function submitbox($value="提交"){
         $html_attrs["type"]="submit";
-        $html=$this->build("button","",$value);
+        $html=$this->build("button","",$value,$this->attrs);
         $this->reset();
         return $html;
     }
@@ -837,7 +847,7 @@ class smForm extends smChainable{
      */
     function selectbox($field_name,$values){
         $value=$this->_get_value($field_name,$this->attrs);
-        $select_html = $this->_left("select",$field_name);
+        $select_html = $this->_left("select",$field_name,$this->attrs);
         $strs=array();
         foreach($values as $v){
             if(sizeof($v)!=2) throw new smException("you assign a bad value for select ,file:".__FILE__.",line:".__LINE__);
@@ -877,7 +887,13 @@ class smForm extends smChainable{
     function _left($tag_name,$field_name,$html_attrs=null){
         if($field_name){
             if($tag_name!="label"){
-                $str="<".$tag_name." id=\"".$this->_form_name."_".$field_name."\" name=\"".$this->_form_name."[".$field_name."]\" ";
+                $str="<".$tag_name." ";
+		if(empty($html_attrs["id"])){
+			$str.="id=\"".$this->_form_name."_".$field_name."\" ";
+		}
+		if(empty($html_attrs["name"])){
+			$str.="name=\"".$this->_form_name."[".$field_name."]\" ";
+		}
             }else{
                 $str="<".$tag_name."  ";
             }
