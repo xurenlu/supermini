@@ -123,6 +123,9 @@ function sm_url($args,$string=""){
 	        $string=str_replace("{".$k."}",$v,$string);
         }	
         $string=sm_urlmap($string,2);
+        $left2=substr($string,0,2);
+        if($left2=="//")
+            $string = substr($string ,1);
 		return $string;
 	}
 }
@@ -351,14 +354,17 @@ function sm_query($sql,$conn=null){
 }
 /**  sm_fetch_row 取出sql查询的一条结果 */
 function sm_fetch_row($sql,$conn=null){
+    global $sm_config,$sm_temp;
     $rs=sm_query($sql,$conn);
+    $sm_temp["last_rs"]=$rs;
     return empty($rs)? null:mysql_fetch_assoc($rs);
 }
 
 /*!   sm_fetch_rows 取出sql查询的多条结果 */ 
 function sm_fetch_rows($sql,$conn=null,$type=MYSQL_ASSOC){
-    global $sm_config;
+    global $sm_config,$sm_temp;
     $rs=sm_query($sql,$conn);
+    $sm_temp["last_rs"]=$rs;
     if(!empty($rs)){
         $rows=array();
         while($row=mysql_fetch_array($rs,$type)){
@@ -366,6 +372,11 @@ function sm_fetch_rows($sql,$conn=null,$type=MYSQL_ASSOC){
         }
         return $rows;
     }
+}
+function sm_free_result(){
+    global $sm_config,$sm_temp;
+    if($sm_temp["rs"])
+        mysql_free_result($sm_temp["rs"]);
 }
 /**  smObject class
  * 实现一个比较灵活的功能,调用它的属性时，会自动地创建数据库，创建缓存对象等.
@@ -463,9 +474,10 @@ class smChainable {
     }
 }
 /** class smCache 调用memcache 取缓存;*/
-class smCache extends smChainable { 
+class smCache { 
     private $_servers;
     private $_memcache;
+    public $attrs=array("expire"=>7200,"flag"=>0);
     /***   __construct */ 
     function __construct($group_id){
         global $sm_config;
@@ -477,8 +489,6 @@ class smCache extends smChainable {
                 $mem->addServer($server["host"],$server["port"]);
             }
         }
-		$this->expire(7200);
-		$this->flag(0);
         $this->_memcache=$mem;
     }
     /** *  get 读缓存值 */
@@ -487,6 +497,7 @@ class smCache extends smChainable {
     }
     /***  set 设置缓存值;*/
     function set($key,$val,$expire=7200){
+        error_log("cache set called:$key");
         return  $this->_memcache->set($key,$val,$this->attrs["flag"],$this->attrs["expire"]);
     }
     /** 删除memcache key */
@@ -798,7 +809,7 @@ class smForm extends smChainable{
     function caption($field_name,$caption=null){
         if($caption===NULL)
             $caption=$field_name.":";
-        $this->set("form", $this->_form_name."_".$field_name);
+        $this->set("for", $this->_form_name."_".$field_name);
         $html=$this->build("label","$field_name",$caption);
         $this->reset();
         return $html;
@@ -836,7 +847,7 @@ class smForm extends smChainable{
     }
     /** 输出一个提交按钮 */
     function submitbox($value="提交"){
-        $html_attrs["type"]="submit";
+        $this->attrs["type"]="submit";
         $html=$this->build("button","",$value,$this->attrs);
         $this->reset();
         return $html;
@@ -945,13 +956,18 @@ function sm_urlmap($var, $direction=1) {
  */
 function sm_open_shorturl(){
     global $sm_config,$sm_temp;
-    $url=$_SERVER["PHP_SELF"];
+    $url=$_SERVER["REQUEST_URI"];
     $url=sm_urlmap($url,1);
     $parsed_patterns=(sm_compile_models($sm_config["url_routes"],$sm_config["url_namespace"]));
     $sm_temp["compiled_url_routes"]=$parsed_patterns;
     $url_parsed=sm_handle_url($parsed_patterns,$url);
-	if($url_parsed["params"]) foreach($url_parsed["params"] as $k=>$v){
-		$_GET[$k]=$v;
+    if($url_parsed["params"]) foreach($url_parsed["params"] as $k=>$v){
+        if(preg_match("/\?/",$v)){
+            $_GET[$k]=array_shift(explode("?",$v));
+
+        }else{
+            $_GET[$k]=$v;
+        }
 	}
 	$sm_temp["url_pattern"]=$url_parsed["current_template"];
     $sm_temp["use_shorturl"]=true;
