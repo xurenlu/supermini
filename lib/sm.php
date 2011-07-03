@@ -837,10 +837,10 @@ class smForm extends smChainable{
     function checkbox($field_name){
         if(!isset($this->attrs["value"]))
             throw new smException("check_box must specific a value");
-        $this->set("type","check_box");
+        $this->set("type","checkbox");
         $checked_value=$this->_get_value($field_name,array());
-        if($checked_value==$html_attrs["value"])
-            $html_attrs["checked"]="checked";
+        if($checked_value==$this->attrs["value"])
+            $this->set("checked","checked");
         $html=$this->build("input",$field_name,$this->attrs);
         $this->reset();
         return $html;
