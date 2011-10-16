@@ -98,3 +98,5 @@ Supermini:One file PHP framework
     assert_more() && assert($sm->db->table("users")->count()==1) && assert_no_error();
     assert_more() && assert($sm->db->affected_rows()==1) && assert_no_error();
     assert_more() && assert($sm->db->query("drop table users")) && assert_no_error();
+
+    That's All!
