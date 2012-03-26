@@ -332,15 +332,21 @@ function sm_dbo($id=0){
     global $sm_config,$sm_temp;
     return $sm_temp["connections"][$id]=is_resource($sm_temp["connections"][$id])?$sm_temp["connections"][$id]:_sm_mysql($id);
 }
-/***   sm_query 执行一条sql查询并返回结果 */ 
-function sm_query($sql,$conn=null){
+/***
+* sm_query 执行一条sql查询并返回结果
+* @modified at :2012.3.26 23:32
+* @doc 从现在起,必须明确指定第二个参数(mysql连接资源).
+ */ 
+function sm_query($sql,$conn){
     global $sm_config,$sm_temp;
-    $sm_temp["sqls"][]=$sql;
+    if($sm_config["sql_debug"]){
+        $sm_temp["sqls"][]=$sql;
+    }
     if($sm_config["sql_debug"]){
         error_log($sql);
     }
     smDoEvent("before_query",$sql);
-    $ret=is_null($conn)?mysql_query($sql):mysql_query($sql,$conn);//不指定conn时,mysql会调用默认连接
+    $ret = mysql_query($sql,$conn);
     if(!$ret){
         if(is_null($conn)){
             smDoEvent("query_fail",array("sql"=>$sql,"error_no"=>mysql_error()));
@@ -356,16 +362,23 @@ function sm_query($sql,$conn=null){
     smDoEvent("after_query",$sql);
     return $ret;
 }
-/**  sm_fetch_row 取出sql查询的一条结果 */
-function sm_fetch_row($sql,$conn=null){
+/**  sm_fetch_row 取出sql查询的一条结果 
+* @modified at 2012.3.26 23:33
+* @doc 从现在起,必须明确地传入第二个参数(mysql链接)
+*/
+function sm_fetch_row($sql,$conn){
     global $sm_config,$sm_temp;
     $rs=sm_query($sql,$conn);
     $sm_temp["last_rs"]=$rs;
     return empty($rs)? null:mysql_fetch_assoc($rs);
 }
 
-/*!   sm_fetch_rows 取出sql查询的多条结果 */ 
-function sm_fetch_rows($sql,$conn=null,$type=MYSQL_ASSOC){
+/*
+*   sm_fetch_rows 取出sql查询的多条结果
+* @modified at 2012.3.26 23:34 
+* @doc 从现在起,必须明确地传入第二个参数(mysql链接)
+*/ 
+function sm_fetch_rows($sql,$conn,$type=MYSQL_ASSOC){
     global $sm_config,$sm_temp;
     $rs=sm_query($sql,$conn);
     $sm_temp["last_rs"]=$rs;
@@ -433,10 +446,15 @@ class smObject {
             $sm_temp["post_".$id]=$_POST[$id];
             return $sm_temp["post_$id"];
         }
-        if(preg_match("/^dbo_(.*)+$/",$name)){
-            $id = substr($name,4,strlen($name));
-            $sm_temp["dbo_".$id]=sm_dbo($id);
-            return $sm_temp["dbo_$id"];
+        if(preg_match("/^db_(.*)+$/",$name)){
+            $id = substr($name,3,strlen($name));
+            $link = sm_dbo($id);
+            $dbObject = new smDB();
+            $dbObject->rconn($link);
+            $dbObject->wconn($link);
+            $dbObject->prepare_dbo();
+            $sm_temp["db_".$id]=$dbObject;
+            return $sm_temp["db_$id"];
         }
         if(preg_match("/^cache_(.*)$/",$name)){
             $cache_group = substr($name,6,strlen($name));
@@ -623,8 +641,8 @@ class smDB extends smChainable {
         if(!$this->attrs["limit"])
             $this->set("limit",1);
         $sql=smSql::delete($this->attrs["table"],$this->attrs["where"],$this->attrs["limit"]);
-		  if($clear)
-	            $this->reset();
+		if($clear)
+	       $this->reset();
         return sm_query($sql,$this->_wconn);
     }
     /** smDB::delete 的别名 */
@@ -634,8 +652,8 @@ class smDB extends smChainable {
     /** 插入一条记录 */
 	function insert($type="INSERT",$clear=true){
 		$sql=smSql::insert($this->attrs["table"],$this->attrs["values"],$type);
-		  if($clear)
-	            $this->reset();
+		if($clear)
+	       $this->reset();
         return sm_query($sql,$this->_wconn);
     }
     /** smDB::Create的别名 */
@@ -747,15 +765,9 @@ class smApplication{
     public function yield(){
         global $sm_config,$sm_temp;
         if($sm_temp["template_type"]=="html")
-        return include sm_template($sm_config["app_root"]."/app/views/".$this->_name."/".$this->_last_action.".html");
+            return include sm_template($sm_config["app_root"]."/app/views/".$this->_name."/".$this->_last_action.".html");
         else 
-        return include($sm_config["app_root"]."/app/views/".$this->_name."/".$this->_last_action.".php");
-    }
-    /***  establish_connect 建立默认连接,默认情况下读写用同一个链接; */
-    public function establish_connect(){
-        global $sm;
-        $this->_rconn=$sm->dbo_1;
-        $this->_wconn=$sm->dbo_0;
+            return include($sm_config["app_root"]."/app/views/".$this->_name."/".$this->_last_action.".php");
     }
     /***  __get magic method;*/
     public function __get($var){
