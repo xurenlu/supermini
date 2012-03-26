@@ -6,7 +6,7 @@
  *@version 1.2.0 
  *\b License:  \b MIT <http://en.wikipedia.org/wiki/MIT_License>
  <pre>
- *@last_modified 2010-09-27 17:44:37
+ *@last_modified 2012-03-27 01:44:37
  \b Homepage: http://www.162cm.com/ 
  \b Slide: http://codeany.com/slides.10.play.miniphpkuangjiasuperminijianjie.shtml
  </pre>
@@ -150,69 +150,73 @@ function sm_test_urlencode($var){
  * @endcode
  */
 function sm_pagenav_default($total,$pagesize=null,$pagestr=null,$get_args=null,$page_var_name="page",$l=4,$r=4){
-    global $sm_temp;
-    $url_pattern=$sm_temp["url_pattern"];
-    if(is_null($pagestr)){
-        $arr=array();
-        if(is_null($get_args))
-            $get_args=$_GET;
-        while(list($key,$val)=each($get_args)){
-            if(!sm_test_urlencode($val))
-                $val=urlencode($val);
-
-            if(strtolower($key)!=$page_var_name)
-                $arr[]=$key."=".$val;
+        global $sm_temp;
+        $url_pattern=$sm_temp["url_pattern"];
+        if(is_null($pagestr)){
+            $arr=array();
+            if(is_null($get_args))
+                $get_args=$_GET;
+            while(list($key,$val)=each($get_args)){
+                if(!sm_test_urlencode($val))
+                    $val=urlencode($val);
+    
+                if(strtolower($key)!=$page_var_name)
+                    $arr[]=$key."=".$val;
+            }
+            $arr[]=$page_var_name."={page}";
+            $pagestr="?".join("&",$arr);
         }
-        $arr[]=$page_var_name."={page}";
-        $pagestr="?".join("&",$arr);
-    }
-    $get_args[$page_var_name]="{page}";
-    if(is_null($pagesize)){
-        global $sm_config;
-        $pagesize=$sm_config["pagesize"]>0?$sm_config["pagesize"]:20;
-    }
-    $pagecount=$total/$pagesize;
-    if(floor($pagecount)<$pagecount)
-        $pagecount= floor($pagecount)+1;
-    if(! ($_GET[$page_var_name]>0)){
-        $_GET[$page_var_name]=1;
-        $pagenow=1;
-    }
-    else
-        $pagenow=$_GET[$page_var_name];
-
-    $sn="page_".rand(1000,9999);
-    if ($pagenow>1){
-        $get_args[$page_var_name]=1;
-        $str=$str."<span class='pagenum'><a href='".sm_url($get_args)."'>首页</a></span>";
-        $get_args[$page_var_name]=$pagenow-1;
-        $str =$str."<span class='pagenum'> <a href='".sm_url($get_args)."'>上一页</a></span>";
-    }else{
-        $str=$str."<span class='pagenum'>首页</span><span class='pagenum'>&lt;&lt;上一页</span>";
-    }
-    $startpage=$pagenow-$l;
-    $endpage=$pagenow+$r;
-    if($startpage<2) $startpage=2;
-    if($endpage>=$pagecount) $endpage=$pagecount;
-    for($jj=$startpage;$jj<=$endpage;$jj++){
-        if($jj==$pagenow)
-            $str=$str."<span class='currrent pagenum'>".$jj."</span>";
-        else{
-            $get_args[$page_var_name]=$jj;
-            $str=$str."<span class='pagenum'><a href='".sm_url($get_args)."'>".$jj."</a></span>";
+        $get_args[$page_var_name]="{page}";
+        unset($get_args["use_layout"]);
+        if(is_null($pagesize)){
+            global $sm_config;
+            $pagesize=$sm_config["pagesize"]>0?$sm_config["pagesize"]:20;
         }
+        $pagecount=$total/$pagesize;
+        if(floor($pagecount)<$pagecount)
+            $pagecount= floor($pagecount)+1;
+        if(! ($_GET[$page_var_name]>0)){
+            $_GET[$page_var_name]=1;
+            $pagenow=1;
+        }
+        else
+            $pagenow=$_GET[$page_var_name];
+    
+        $sn="page_".rand(1000,9999);
+        if ($pagenow>1){
+            $get_args[$page_var_name]=1;
+            $str=$str."<a href='".sm_url($get_args)."' class='prev'><span class='pagenum'>首页</span></a>";
+            $get_args[$page_var_name]=$pagenow-1;
+            $str =$str."<a href='".sm_url($get_args)."' class='prev'><span class='pagenum'> 上一页</span></a>";
+        }else{
+            $str=$str."<a  class='prev' title='已经是第一页了'><span class='pagenum'>首页</span></a>";
+            $str =$str."<a class='prev' title='已经是第一页了'><span class='pagenum'> 上一页</span></a>";
+        }
+        $startpage=$pagenow-$l;
+        $endpage=$pagenow+$r;
+        if($startpage<1) $startpage=1;
+        if($endpage>=$pagecount) $endpage=$pagecount;
+        for($jj=$startpage;$jj<=$endpage;$jj++){
+            if($jj==$pagenow)
+                $str=$str."<a class='on' href=".sm_url($get_args)."><span class='current pagenum'>".$jj."</span></a>";
+            else{
+                $get_args[$page_var_name]=$jj;
+                $str=$str."<a href='".sm_url($get_args)."'><span>".$jj."</span></a>";
+            }
+        }
+        if($pagenow<$pagecount){
+            $get_args[$page_var_name]=$pagenow+1;
+            $str=$str."<a href='".sm_url($get_args)."' class='next'><span class=''>下一页</span></a>";
+            $get_args[$page_var_name]=$pagecount;
+            $str=$str."<a href='".sm_url($get_args)."' class='next'><span class=''>尾页</span></a>";
+          
+        }else{
+            $str=$str."<a  class='next' title='已经是最后一页了'><span class=''>下一页</span></a>";
+            $str=$str."<a class='next' title='已经是最后一页了'><span class=''>尾页</span></a>";
+        }
+        return $str;
     }
-    if($pagenow<$pagecount){
-        $get_args[$page_var_name]=$pagenow+1;
-        $str=$str."<span class='pagenum'><a href='".sm_url($get_args)."'>下一页</a></span>";
-        $get_args[$page_var_name]=$pagecount;
-        $str=$str."<span class='pagenum'><a href='".sm_url($get_args)."'>末页</a></span>";
-    }else{
-        $str=$str."<span class='pagenum'>下一页</span><span class='pagenum'>&gt;&gt;尾页</span>";
-    }
-    return $str;
-}
-/**  static class smSql  帮助构造SQL语句的小工具类; */
+    /**  static class smSql  帮助构造SQL语句的小工具类; */
 class smSql{
     var $pagesize=20;
     static function escape_string($v){
@@ -497,7 +501,6 @@ class smCache {
     }
     /***  set 设置缓存值;*/
     function set($key,$val,$expire=7200){
-        error_log("cache set called:$key");
         return  $this->_memcache->set($key,$val,$this->attrs["flag"],$this->attrs["expire"]);
     }
     /** 删除memcache key */
@@ -512,11 +515,12 @@ class smCache {
  * smDB 是数据操作类
 */
 class smDB extends smChainable {
-    private $_rconn=null;
-    private $_wconn=null;
-    private $_pagesize=null;
-    private $_page_var = "page";
-    private $_extra_args = null;
+    protected $_rconn=null;
+    protected $_wconn=null;
+    protected $_pagesize=null;
+    protected $_page_var = "page";
+    var $_extra_args = null;
+    var $_pagestr = null;
     /**
      * 重置属性(主要是重置查询条件)
      * */
@@ -698,11 +702,17 @@ class smApplication{
         else
             $this->_last_action=$action;
         $mod=$this->_name;
+        unset($_GET["use_layout"]);
         if($sm_config["use_layout"]){
             //如果使用布局并且布局文件存在...
-            if(!include($sm_config["app_root"]."/app/layouts/$mod.php"))
-                if(!include($sm_config["app_root"]."/app/layouts/application.php"))
-                    return include($sm_config["app_root"]."/app/views/$mod/$action.php");
+            if (is_file($sm_config["app_root"] . "/app/layouts/$mod.php"))
+                return include $sm_config["app_root"] . "/app/layouts/$mod.php";
+            elseif (is_file($sm_config["app_root"] . "/app/layouts/application.php"))
+                return include $sm_config["app_root"] . "/app/layouts/application.php";
+            elseif (is_file($sm_config["app_root"] . "/app/views/$mod/$action.php"))
+                return include $sm_config["app_root"] . "/app/views/$mod/$action.php";
+            else
+                return '';
         }
         else{
             return include($sm_config["app_root"]."/app/views/$mod/$action.php");

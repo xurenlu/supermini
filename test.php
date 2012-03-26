@@ -1,6 +1,6 @@
 <?php
 header("Content-type:text/html;charset=utf8");
-include "./sm.php";
+include "./lib/sm.php";
 include "./sm_config.php";
 $conn = sm_dbo(0);
 $user= new smTable("test_user","id",$conn);
