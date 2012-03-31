@@ -317,7 +317,7 @@ function _sm_mysql($id){
         throw new smException("MYSQL configuration 'sm_config[\"mysql\"][$id]' not exists");
     }
     $config=$sm_config["mysql"][$id];
-    $conn=mysql_connect($config["host"],$config["user"],$config["password"]);
+    $conn=mysql_connect($config["host"],$config["user"],$config["password"],1);
     $switch=mysql_select_db($config["database"],$conn);
     smDoEvent("select_db",$conn);
     if(!is_resource($conn) || !$switch){
