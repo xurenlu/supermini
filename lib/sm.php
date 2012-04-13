@@ -572,6 +572,7 @@ class smDB extends smChainable {
     }
     /** 返回符合条件的若干行 */
     function rows($clear=true){
+        global $sm;
 	   if($this->attrs["cache_key"]&&($tmp=$sm->cache_group_1->get($this->attrs["cache_key"]))){
 			if(!empty($tmp))
 				return $tmp;
