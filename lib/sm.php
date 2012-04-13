@@ -487,6 +487,7 @@ class smChainable {
         return $this;
     }
     function __call($name,$args){
+        //smDoEvent("before_magic_call",array("method"=>"$name","args"=>$args,"class"=>get_class($this),"object"=>$this));
         $this->set($name,$args[0]);
         return $this;
     }
@@ -533,8 +534,8 @@ class smCache {
  * smDB 是数据操作类
 */
 class smDB extends smChainable {
-    protected $_rconn=null;
-    protected $_wconn=null;
+    public $_rconn=null;
+    public $_wconn=null;
     protected $_pagesize=null;
     protected $_page_var = "page";
     var $_extra_args = null;
@@ -585,6 +586,7 @@ class smDB extends smChainable {
     }
     /**  查询一条记录 **/
     function row($clear=true){
+        global $sm;
 	   if($this->attrs["cache_key"]&&($tmp=$sm->cache_group_1->get($this->attrs["cache_key"]))){
 			if(!empty($tmp))
 				return $tmp;
